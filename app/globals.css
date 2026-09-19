@@ -964,3 +964,31 @@
     transform: none;
   }
 }
+@media print {
+  .proposal-actions,
+  body > [data-sonner-toaster] {
+    display: none !important;
+  }
+  .proposal-shell {
+    padding: 0 !important;
+    background: white !important;
+  }
+  .proposal-document {
+    max-width: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .proposal-page {
+    min-height: 297mm !important;
+    page-break-after: always;
+    break-after: page;
+  }
+  .proposal-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}

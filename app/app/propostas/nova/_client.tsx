@@ -1,0 +1,165 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+
+import { showApiError } from "@/components/feedback/ApiErrorToast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { apiClient } from "@/lib/api/client";
+import { formatCentsBRL, parseReaisToCents } from "@/lib/money";
+import {
+  CATALOGO_DA_PROPOSTA,
+  type ItemDaProposta,
+  type PropostaComercial,
+  valorMonitoramento,
+  valorUsuarioLimitado,
+} from "@/lib/schemas/propostas";
+
+type Contact = { id: string; display_name: string | null; name: string | null; email: string | null };
+
+function isoHoje(): string {
+  const agora = new Date();
+  return new Date(agora.getTime() - agora.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+}
+
+function somarDias(data: string, dias: number): string {
+  const valor = new Date(`${data}T12:00:00`);
+  valor.setDate(valor.getDate() + dias);
+  return valor.toISOString().slice(0, 10);
+}
+
+export function NovaPropostaClient({ contacts, companyName }: { contacts: Contact[]; companyName: string }) {
+  const router = useRouter();
+  const hoje = React.useMemo(() => isoHoje(), []);
+  const [clientName, setClientName] = React.useState("");
+  const [clientKind, setClientKind] = React.useState<"escritorio" | "departamento_juridico">("departamento_juridico");
+  const [contactId, setContactId] = React.useState("");
+  const [recipientName, setRecipientName] = React.useState("");
+  const [recipientEmail, setRecipientEmail] = React.useState("");
+  const [issueDate, setIssueDate] = React.useState(hoje);
+  const [validUntil, setValidUntil] = React.useState(somarDias(hoje, 15));
+  const [selected, setSelected] = React.useState<string[]>([]);
+  const [modulePrices, setModulePrices] = React.useState<Record<string, string>>({});
+  const [limitedUsers, setLimitedUsers] = React.useState("0");
+  const [monitoring, setMonitoring] = React.useState("0");
+  const [activation, setActivation] = React.useState("0,00");
+  const [notes, setNotes] = React.useState("");
+  const [paymentTerms, setPaymentTerms] = React.useState("Cobrança mensal após a ativação. Início do projeto após a assinatura do contrato.");
+  const [saving, setSaving] = React.useState(false);
+
+  function chooseContact(id: string) {
+    setContactId(id);
+    const contact = contacts.find((item) => item.id === id);
+    if (!contact) return;
+    const name = contact.display_name || contact.name || "";
+    setClientName(name);
+    setRecipientName(name);
+    setRecipientEmail(contact.email ?? "");
+  }
+
+  const items = React.useMemo<ItemDaProposta[]>(() => {
+    const result: ItemDaProposta[] = CATALOGO_DA_PROPOSTA
+      .filter((item) => selected.includes(item.codigo))
+      .map((item) => {
+        const price = parseReaisToCents(modulePrices[item.codigo] ?? "0") ?? 0;
+        return { codigo: item.codigo, nome: item.nome, descricao: item.descricao, quantidade: 1, valor_unitario_cents: price, total_cents: price, cobranca: "mensal" as const, categoria: "modulo" as const };
+      });
+    const users = Math.max(0, Number.parseInt(limitedUsers, 10) || 0);
+    if (users > 0) {
+      const unit = valorUsuarioLimitado(users);
+      result.push({ codigo: "usuarios_limitados", nome: "Usuários limitados", descricao: "Acessos para consulta e operação conforme as permissões contratadas.", quantidade: users, valor_unitario_cents: unit, total_cents: users * unit, cobranca: "mensal", categoria: "usuario" });
+    }
+    const processes = Math.max(0, Number.parseInt(monitoring, 10) || 0);
+    if (processes > 0) {
+      const unit = valorMonitoramento(processes);
+      if (unit > 0) result.push({ codigo: "monitoramento_processos", nome: "Monitoramento de processos", descricao: "Acompanhamento de movimentações e geração de alertas.", quantidade: processes, valor_unitario_cents: unit, total_cents: processes * unit, cobranca: "mensal", categoria: "monitoramento" });
+    }
+    const activationCents = parseReaisToCents(activation) ?? 0;
+    if (activationCents > 0) result.push({ codigo: "ativacao", nome: "Ativação e implantação", descricao: "Preparação do ambiente, configuração inicial e acompanhamento da entrada em operação.", quantidade: 1, valor_unitario_cents: activationCents, total_cents: activationCents, cobranca: "unica", categoria: "ativacao" });
+    return result;
+  }, [activation, limitedUsers, modulePrices, monitoring, selected]);
+
+  const monthly = items.filter((item) => item.cobranca === "mensal").reduce((sum, item) => sum + item.total_cents, 0);
+  const oneTime = items.filter((item) => item.cobranca === "unica").reduce((sum, item) => sum + item.total_cents, 0);
+
+  async function save() {
+    if (clientName.trim().length < 2) return toast.error("Informe o nome do cliente.");
+    const processos = Number.parseInt(monitoring, 10) || 0;
+    if (processos > 0 && processos < 100) return toast.error("O monitoramento exige no mínimo 100 processos.");
+    if (items.length === 0) return toast.error("Inclua ao menos um módulo ou serviço.");
+    if (selected.some((code) => parseReaisToCents(modulePrices[code] ?? "") === null)) return toast.error("Informe o valor mensal de cada módulo selecionado.");
+    setSaving(true);
+    try {
+      const response = await apiClient.post<{ data: PropostaComercial }>("/api/v1/propostas", {
+        contact_id: contactId || null,
+        client_name: clientName,
+        client_kind: clientKind,
+        recipient_name: recipientName,
+        recipient_email: recipientEmail,
+        issue_date: issueDate,
+        valid_until: validUntil,
+        status: "rascunho",
+        notes,
+        payment_terms: paymentTerms,
+        items,
+      });
+      toast.success("Proposta salva como rascunho");
+      router.push(`/app/propostas/${response.data.id}`);
+      router.refresh();
+    } catch (error) {
+      showApiError(error);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-7xl p-6" data-testid="nova-proposta">
+      <header className="mb-6"><p className="text-sm font-medium text-accent">Propostas</p><h1 className="text-2xl font-semibold">Nova proposta</h1><p className="mt-1 text-sm text-muted-foreground">Preencha a contratação enquanto o resumo calcula os valores.</p></header>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-5">
+          <section className="rounded-xl border bg-surface p-5">
+            <h2 className="font-semibold">1. Cliente</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="text-sm sm:col-span-2">Usar um contato existente <select value={contactId} onChange={(event) => chooseContact(event.target.value)} className="mt-1 h-10 w-full rounded-sm border bg-bg px-3"><option value="">Cliente ainda não cadastrado</option>{contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.display_name || contact.name || contact.email || "Contato sem nome"}</option>)}</select></label>
+              <label className="text-sm">Empresa ou escritório<Input className="mt-1" value={clientName} onChange={(event) => setClientName(event.target.value)} /></label>
+              <label className="text-sm">Tipo de cliente<select value={clientKind} onChange={(event) => setClientKind(event.target.value as typeof clientKind)} className="mt-1 h-10 w-full rounded-sm border bg-bg px-3"><option value="departamento_juridico">Departamento jurídico</option><option value="escritorio">Escritório de advocacia</option></select></label>
+              <label className="text-sm">Preparada para<Input className="mt-1" value={recipientName} onChange={(event) => setRecipientName(event.target.value)} /></label>
+              <label className="text-sm">E-mail<Input className="mt-1" type="email" value={recipientEmail} onChange={(event) => setRecipientEmail(event.target.value)} /></label>
+              <label className="text-sm">Emissão<Input className="mt-1" type="date" value={issueDate} onChange={(event) => { setIssueDate(event.target.value); setValidUntil(somarDias(event.target.value, 15)); }} /></label>
+              <label className="text-sm">Válida até<Input className="mt-1" type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} /></label>
+            </div>
+          </section>
+
+          <section className="rounded-xl border bg-surface p-5">
+            <h2 className="font-semibold">2. Módulos e funcionalidades</h2><p className="mt-1 text-sm text-muted-foreground">Marque o que o cliente está contratando.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {CATALOGO_DA_PROPOSTA.map((item) => { const checked = selected.includes(item.codigo); return <div key={item.codigo} className={`rounded-lg border p-4 transition ${checked ? "border-accent bg-accent-soft" : "hover:border-border-strong"}`}><label className="flex cursor-pointer items-start gap-3"><input type="checkbox" checked={checked} onChange={() => setSelected((current) => checked ? current.filter((code) => code !== item.codigo) : [...current, item.codigo])} className="mt-1" /><span><strong className="block text-sm">{item.nome}</strong><span className="mt-1 block text-xs text-muted-foreground">{item.descricao}</span></span></label>{checked ? <label className="mt-3 block text-xs font-medium">Valor mensal (R$)<Input className="mt-1" placeholder="0,00" value={modulePrices[item.codigo] ?? ""} onChange={(event) => setModulePrices((current) => ({ ...current, [item.codigo]: event.target.value }))} /></label> : null}</div>; })}
+            </div>
+          </section>
+
+          <section className="rounded-xl border bg-surface p-5">
+            <h2 className="font-semibold">3. Quantidades e ativação</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <label className="text-sm">Usuários limitados<Input className="mt-1" type="number" min="0" value={limitedUsers} onChange={(event) => setLimitedUsers(event.target.value)} /><span className="mt-1 block text-xs text-muted-foreground">A faixa de desconto é aplicada automaticamente.</span></label>
+              <label className="text-sm">Processos monitorados<Input className="mt-1" type="number" min="0" value={monitoring} onChange={(event) => setMonitoring(event.target.value)} /><span className="mt-1 block text-xs text-muted-foreground">Contratação mínima de 100 processos.</span></label>
+              <label className="text-sm">Ativação (R$)<Input className="mt-1" value={activation} onChange={(event) => setActivation(event.target.value)} /></label>
+            </div>
+          </section>
+
+          <section className="rounded-xl border bg-surface p-5"><h2 className="font-semibold">4. Condições e observações</h2><label className="mt-4 block text-sm">Prazo e forma de pagamento<Textarea className="mt-1" value={paymentTerms} onChange={(event) => setPaymentTerms(event.target.value)} /></label><label className="mt-4 block text-sm">Observações da proposta<Textarea className="mt-1" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Treinamento incluído, integrações fora do escopo, condições especiais..." /></label></section>
+        </div>
+
+        <aside className="h-fit rounded-xl border bg-surface p-5 lg:sticky lg:top-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-accent">Resumo da contratação</p><h2 className="mt-2 text-xl font-semibold">{clientName || "Novo cliente"}</h2><p className="text-sm text-muted-foreground">Proposta de {companyName}</p>
+          <div className="mt-5 divide-y rounded-lg border">{items.length === 0 ? <p className="p-4 text-sm text-muted-foreground">Os itens escolhidos aparecerão aqui.</p> : items.map((item) => <div key={item.codigo} className="flex justify-between gap-3 p-3 text-sm"><div><p className="font-medium">{item.nome}</p><p className="text-xs text-muted-foreground">{item.quantidade > 1 ? `${item.quantidade} × ${formatCentsBRL(item.valor_unitario_cents)}` : item.cobranca === "mensal" ? "Mensal" : "Pagamento único"}</p></div><strong className="shrink-0 tabular-nums">{formatCentsBRL(item.total_cents)}</strong></div>)}</div>
+          <div className="mt-5 space-y-2"><div className="flex justify-between text-sm"><span>Ativação</span><strong>{formatCentsBRL(oneTime)}</strong></div><div className="flex justify-between border-t pt-3 text-lg"><span>Total mensal</span><strong className="text-accent">{formatCentsBRL(monthly)}</strong></div></div>
+          <Button className="mt-5 w-full" onClick={() => void save()} disabled={saving}>{saving ? "Salvando…" : "Salvar e visualizar"}</Button>
+        </aside>
+      </div>
+    </main>
+  );
+}
