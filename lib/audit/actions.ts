@@ -535,6 +535,10 @@ export const AUDIT_ACTIONS = [
   "catalog_product.deleted",
   "catalog_product.imported",
 
+  // Proposta comercial: o retrato de preço enviado ao cliente precisa ter
+  // autoria verificável mesmo quando o rascunho ainda não saiu do CRM.
+  "commercial_proposal.created",
+
   // As tarefas do CRM (migration 0210). Tarefa é combinado de trabalho entre
   // pessoas do time — quem a criou, quem mudou o prazo e quem a apagou é
   // exatamente o que se disputa depois de um cliente ficar sem retorno.

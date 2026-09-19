@@ -182,6 +182,15 @@ export const NAV_CATALOG = [
     sidebar: true,
   },
   {
+    href: "/app/propostas",
+    label: "Propostas",
+    description: "Monte a contratação, calcule os valores e gere a proposta para o cliente.",
+    icon: "Receipt",
+    group: "crm",
+    section: "O dia a dia da venda",
+    sidebar: true,
+  },
+  {
     // Extraída do PR #418 (@clinicacentrodosorrisosc-code). Fica no CRM e no
     // sidebar porque é tela de USO DIÁRIO — quem atende abre para ver o que
     // vence hoje, do mesmo jeito que abre o Inbox. Sem `minRole`: `viewer` VÊ
