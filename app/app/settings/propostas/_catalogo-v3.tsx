@@ -176,7 +176,7 @@ export function CatalogoPropostasClient({
 
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      <header className="grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
         <div>
           <p className="text-sm font-medium text-accent">Configurações</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Propostas comerciais</h1>
@@ -186,7 +186,11 @@ export function CatalogoPropostasClient({
           </p>
         </div>
         {canEdit ? (
-          <Button onClick={() => void save()} disabled={saving || !dirty}>
+          <Button
+            className="sm:justify-self-end"
+            onClick={() => void save()}
+            disabled={saving || !dirty}
+          >
             {saving ? (
               "Salvando…"
             ) : dirty ? (
