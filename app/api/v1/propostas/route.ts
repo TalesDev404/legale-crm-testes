@@ -5,8 +5,8 @@ import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
+import { CATALOGO_COMERCIAL_INICIAL } from "@/lib/schemas/proposta-catalogo";
 import {
-  CATALOGO_DA_PROPOSTA,
   COLUNAS_DA_PROPOSTA,
   propostaCreateSchema,
   valorMonitoramento,
@@ -49,18 +49,41 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   }
 
-  // Quantidades e faixas conhecidas são recalculadas no servidor. O valor de
-  // cada módulo é informado pelo comercial enquanto não há tabela homologada.
-  const codigosDosModulos = new Set<string>(CATALOGO_DA_PROPOSTA.map((item) => item.codigo));
+  const supabase = await createClient();
+  const { data: catalogRows, error: catalogError } = await supabase
+    .from("proposal_catalog_items")
+    .select("codigo,categoria,preco_escritorio_cents,preco_departamento_cents,setup_cents")
+    .eq("organization_id", authz.org.orgId)
+    .eq("ativo", true);
+  if (catalogError)
+    return fail("internal_error", "Erro ao conferir o catálogo comercial.", 500, { requestId });
+
+  const effectiveCatalog = catalogRows?.length ? catalogRows : CATALOGO_COMERCIAL_INICIAL;
+  const catalogByCode = new Map(effectiveCatalog.map((item) => [item.codigo, item]));
+  const specialCodes = new Set(["usuarios_limitados", "monitoramento_processos", "ativacao"]);
   const itensConferidos = parsed.data.items.map((item) => {
     let unitario = item.valor_unitario_cents;
-    if (item.categoria === "modulo" && !codigosDosModulos.has(item.codigo)) unitario = -1;
-    if (item.categoria === "usuario" && item.codigo === "usuarios_limitados") unitario = valorUsuarioLimitado(item.quantidade);
-    if (item.categoria === "monitoramento" && item.codigo === "monitoramento_processos") unitario = valorMonitoramento(item.quantidade);
+    const isSetup = item.codigo.endsWith("_setup");
+    const catalogCode = isSetup ? item.codigo.slice(0, -6) : item.codigo;
+    const catalogItem = catalogByCode.get(catalogCode);
+    if (!specialCodes.has(item.codigo) && !catalogItem) unitario = -1;
+    if (catalogItem?.categoria === "usuario" && !isSetup) {
+      unitario =
+        parsed.data.client_kind === "escritorio"
+          ? catalogItem.preco_escritorio_cents
+          : catalogItem.preco_departamento_cents;
+    }
+    if (catalogItem && isSetup) unitario = catalogItem.setup_cents;
+    if (item.categoria === "usuario" && item.codigo === "usuarios_limitados")
+      unitario = valorUsuarioLimitado(item.quantidade);
+    if (item.categoria === "monitoramento" && item.codigo === "monitoramento_processos")
+      unitario = valorMonitoramento(item.quantidade);
     return { ...item, valor_unitario_cents: unitario, total_cents: unitario * item.quantidade };
   });
   if (itensConferidos.some((item) => item.valor_unitario_cents < 0)) {
-    return fail("validation_failed", "A proposta contém um módulo desconhecido.", 422, { requestId });
+    return fail("validation_failed", "A proposta contém um módulo desconhecido.", 422, {
+      requestId,
+    });
   }
 
   const mensal = itensConferidos
@@ -70,7 +93,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     .filter((item) => item.cobranca === "unica")
     .reduce((total, item) => total + item.total_cents, 0);
 
-  const supabase = await createClient();
   if (parsed.data.contact_id) {
     const { data: contato } = await supabase
       .from("contacts")
@@ -79,7 +101,10 @@ export async function POST(req: NextRequest): Promise<Response> {
       .eq("id", parsed.data.contact_id)
       .is("is_merged_into", null)
       .maybeSingle();
-    if (!contato) return fail("validation_failed", "O contato não pertence à organização ativa.", 422, { requestId });
+    if (!contato)
+      return fail("validation_failed", "O contato não pertence à organização ativa.", 422, {
+        requestId,
+      });
   }
   const { data, error } = await supabase
     .from("commercial_proposals")

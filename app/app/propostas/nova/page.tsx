@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
+import { CATALOGO_COMERCIAL_INICIAL, type ItemDoCatalogo } from "@/lib/schemas/proposta-catalogo";
 
 import { NovaPropostaClient } from "./_client";
 
@@ -29,5 +30,32 @@ export default async function NovaPropostaPage() {
     .eq("id", activeOrg.orgId)
     .single();
 
-  return <NovaPropostaClient contacts={(contacts ?? []) as Array<{ id: string; display_name: string | null; name: string | null; email: string | null }>} companyName={organization?.display_name ?? organization?.name ?? organization?.legal_name ?? "Nossa empresa"} />;
+  const { data: catalog } = await supabase
+    .from("proposal_catalog_items")
+    .select(
+      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,ativo,ordem",
+    )
+    .eq("organization_id", activeOrg.orgId)
+    .eq("ativo", true)
+    .order("ordem");
+
+  return (
+    <NovaPropostaClient
+      contacts={
+        (contacts ?? []) as Array<{
+          id: string;
+          display_name: string | null;
+          name: string | null;
+          email: string | null;
+        }>
+      }
+      companyName={
+        organization?.display_name ??
+        organization?.name ??
+        organization?.legal_name ??
+        "Nossa empresa"
+      }
+      catalog={(catalog?.length ? catalog : CATALOGO_COMERCIAL_INICIAL) as ItemDoCatalogo[]}
+    />
+  );
 }
