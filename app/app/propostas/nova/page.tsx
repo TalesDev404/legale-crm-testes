@@ -33,7 +33,7 @@ export default async function NovaPropostaPage() {
   const { data: catalog } = await supabase
     .from("proposal_catalog_items")
     .select(
-      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,ativo,ordem",
+      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,ativo,ordem",
     )
     .eq("organization_id", activeOrg.orgId)
     .eq("ativo", true)
