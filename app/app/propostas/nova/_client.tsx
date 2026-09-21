@@ -492,7 +492,10 @@ export function NovaPropostaClient({
           ) : null}
 
           <section className="rounded-xl border bg-surface p-5">
-            <h2 className="font-semibold">5. Condições e observações</h2>
+            <h2 className="font-semibold">
+              {catalog.some((item) => item.categoria === "migracao") ? "5" : "4"}. Condições e
+              observações
+            </h2>
             <label className="mt-4 block text-sm">
               Prazo e forma de pagamento
               <Textarea
