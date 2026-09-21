@@ -624,6 +624,15 @@ export const NAV_CATALOG = [
     minRole: "admin",
   },
   {
+    href: "/app/settings/propostas",
+    label: "Propostas comerciais",
+    description: "Módulos, usuários, faixas de preço e migrações disponíveis nas propostas.",
+    icon: "ListChecks",
+    group: "organizacao",
+    section: "Sua empresa",
+    minRole: "admin",
+  },
+  {
     // Mora em Organização e não em Canais de propósito: o que se configura aqui
     // é a CONTA DE ANÚNCIOS da empresa — dinheiro e identidade comercial, ao lado
     // de billing e API tokens. Canais é por onde se FALA com o cliente, e os dois

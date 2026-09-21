@@ -42,16 +42,9 @@ export default async function PropostasPage() {
             Monte o escopo, confira o investimento e gere o material para o cliente.
           </p>
         </div>
-        <div className="flex gap-2">
-          {activeOrg.role === "admin" ? (
-            <Button asChild variant="outline">
-              <Link href="/app/settings/propostas">Configurar catálogo</Link>
-            </Button>
-          ) : null}
-          <Button asChild>
-            <Link href="/app/propostas/nova">Nova proposta</Link>
-          </Button>
-        </div>
+        <Button asChild>
+          <Link href="/app/propostas/nova">Nova proposta</Link>
+        </Button>
       </header>
 
       {propostas.length === 0 ? (

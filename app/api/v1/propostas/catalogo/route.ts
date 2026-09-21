@@ -18,7 +18,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("proposal_catalog_items")
     .select(
-      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,ativo,ordem",
+      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,ativo,ordem",
     )
     .eq("organization_id", authz.org.orgId)
     .order("ordem");
@@ -41,9 +41,13 @@ export async function PUT(req: NextRequest) {
     ...item,
     organization_id: authz.org.orgId,
   }));
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("proposal_catalog_items")
-    .upsert(linhas, { onConflict: "organization_id,codigo" });
+    .upsert(linhas, { onConflict: "organization_id,codigo" })
+    .select(
+      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,ativo,ordem",
+    )
+    .order("ordem");
   if (error)
     return fail("internal_error", "Erro ao salvar o catálogo comercial.", 500, { requestId });
   await audit({
@@ -54,5 +58,5 @@ export async function PUT(req: NextRequest) {
     requestId,
     metadata: { itens: linhas.length },
   });
-  return ok({ saved: linhas.length }, { requestId });
+  return ok(data ?? [], { requestId });
 }

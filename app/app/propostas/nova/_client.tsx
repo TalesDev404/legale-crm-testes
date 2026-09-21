@@ -10,13 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api/client";
 import { formatCentsBRL, parseReaisToCents } from "@/lib/money";
-import type { ItemDoCatalogo } from "@/lib/schemas/proposta-catalogo";
-import {
-  type ItemDaProposta,
-  type PropostaComercial,
-  valorMonitoramento,
-  valorUsuarioLimitado,
-} from "@/lib/schemas/propostas";
+import { precoDoCatalogo, type ItemDoCatalogo } from "@/lib/schemas/proposta-catalogo";
+import { type ItemDaProposta, type PropostaComercial } from "@/lib/schemas/propostas";
 
 type Contact = {
   id: string;
@@ -58,9 +53,7 @@ export function NovaPropostaClient({
   const [validUntil, setValidUntil] = React.useState(somarDias(hoje, 15));
   const [selected, setSelected] = React.useState<string[]>([]);
   const [modulePrices, setModulePrices] = React.useState<Record<string, string>>({});
-  const [userQuantities, setUserQuantities] = React.useState<Record<string, string>>({});
-  const [limitedUsers, setLimitedUsers] = React.useState("0");
-  const [monitoring, setMonitoring] = React.useState("0");
+  const [quantities, setQuantities] = React.useState<Record<string, string>>({});
   const [activation, setActivation] = React.useState("0,00");
   const [notes, setNotes] = React.useState("");
   const [paymentTerms, setPaymentTerms] = React.useState(
@@ -82,34 +75,47 @@ export function NovaPropostaClient({
     const result: ItemDaProposta[] = catalog
       .filter((item) => item.categoria !== "usuario" && selected.includes(item.codigo))
       .map((item) => {
+        const primeiraFaixa = item.faixas_preco[0];
+        const quantity = primeiraFaixa
+          ? Math.max(
+              0,
+              Number.parseInt(
+                quantities[item.codigo] ?? String(primeiraFaixa.quantidade_minima),
+                10,
+              ) || 0,
+            )
+          : 1;
         const defaultPrice =
           clientKind === "escritorio" ? item.preco_escritorio_cents : item.preco_departamento_cents;
-        const price =
-          parseReaisToCents(
-            modulePrices[item.codigo] ?? String(defaultPrice / 100).replace(".", ","),
-          ) ?? 0;
+        const price = primeiraFaixa
+          ? precoDoCatalogo(item, quantity, clientKind)
+          : (parseReaisToCents(
+              modulePrices[item.codigo] ?? String(defaultPrice / 100).replace(".", ","),
+            ) ?? 0);
         return {
           codigo: item.codigo,
           nome: item.nome,
           descricao: item.descricao,
-          quantidade: 1,
+          unidade: item.unidade,
+          quantidade: quantity,
           valor_unitario_cents: price,
-          total_cents: price,
+          total_cents: price * quantity,
           cobranca: item.cobranca,
-          categoria: "modulo" as const,
+          categoria: item.categoria,
         };
-      });
+      })
+      .filter((item) => item.quantidade > 0);
     catalog
       .filter((item) => item.categoria === "usuario")
       .forEach((item) => {
-        const quantity = Math.max(0, Number.parseInt(userQuantities[item.codigo] ?? "0", 10) || 0);
+        const quantity = Math.max(0, Number.parseInt(quantities[item.codigo] ?? "0", 10) || 0);
         if (quantity === 0) return;
-        const unit =
-          clientKind === "escritorio" ? item.preco_escritorio_cents : item.preco_departamento_cents;
+        const unit = precoDoCatalogo(item, quantity, clientKind);
         result.push({
           codigo: item.codigo,
           nome: item.nome,
           descricao: item.descricao,
+          unidade: item.unidade,
           quantidade: quantity,
           valor_unitario_cents: unit,
           total_cents: quantity * unit,
@@ -124,6 +130,7 @@ export function NovaPropostaClient({
           codigo: `${item.codigo}_setup`,
           nome: `Ativação — ${item.nome}`,
           descricao: `Configuração inicial de ${item.nome}.`,
+          unidade: "ativação",
           quantidade: 1,
           valor_unitario_cents: item.setup_cents,
           total_cents: item.setup_cents,
@@ -131,35 +138,6 @@ export function NovaPropostaClient({
           categoria: "ativacao",
         });
       });
-    const users = Math.max(0, Number.parseInt(limitedUsers, 10) || 0);
-    if (users > 0) {
-      const unit = valorUsuarioLimitado(users);
-      result.push({
-        codigo: "usuarios_limitados",
-        nome: "Usuários limitados",
-        descricao: "Acessos para consulta e operação conforme as permissões contratadas.",
-        quantidade: users,
-        valor_unitario_cents: unit,
-        total_cents: users * unit,
-        cobranca: "mensal",
-        categoria: "usuario",
-      });
-    }
-    const processes = Math.max(0, Number.parseInt(monitoring, 10) || 0);
-    if (processes > 0) {
-      const unit = valorMonitoramento(processes);
-      if (unit > 0)
-        result.push({
-          codigo: "monitoramento_processos",
-          nome: "Monitoramento de processos",
-          descricao: "Acompanhamento de movimentações e geração de alertas.",
-          quantidade: processes,
-          valor_unitario_cents: unit,
-          total_cents: processes * unit,
-          cobranca: "mensal",
-          categoria: "monitoramento",
-        });
-    }
     const activationCents = parseReaisToCents(activation) ?? 0;
     if (activationCents > 0)
       result.push({
@@ -167,6 +145,7 @@ export function NovaPropostaClient({
         nome: "Ativação e implantação",
         descricao:
           "Preparação do ambiente, configuração inicial e acompanhamento da entrada em operação.",
+        unidade: "ativação",
         quantidade: 1,
         valor_unitario_cents: activationCents,
         total_cents: activationCents,
@@ -174,16 +153,7 @@ export function NovaPropostaClient({
         categoria: "ativacao",
       });
     return result;
-  }, [
-    activation,
-    catalog,
-    clientKind,
-    limitedUsers,
-    modulePrices,
-    monitoring,
-    selected,
-    userQuantities,
-  ]);
+  }, [activation, catalog, clientKind, modulePrices, quantities, selected]);
 
   const monthly = items
     .filter((item) => item.cobranca === "mensal")
@@ -194,9 +164,21 @@ export function NovaPropostaClient({
 
   async function save() {
     if (clientName.trim().length < 2) return toast.error("Informe o nome do cliente.");
-    const processos = Number.parseInt(monitoring, 10) || 0;
-    if (processos > 0 && processos < 100)
-      return toast.error("O monitoramento exige no mínimo 100 processos.");
+    const abaixoDoMinimo = catalog.find((item) => {
+      const primeiraFaixa = item.faixas_preco[0];
+      return (
+        selected.includes(item.codigo) &&
+        primeiraFaixa !== undefined &&
+        (Number.parseInt(quantities[item.codigo] ?? String(primeiraFaixa.quantidade_minima), 10) ||
+          0) < primeiraFaixa.quantidade_minima
+      );
+    });
+    if (abaixoDoMinimo) {
+      const quantidadeMinima = abaixoDoMinimo.faixas_preco[0]?.quantidade_minima ?? 1;
+      return toast.error(
+        `${abaixoDoMinimo.nome} exige no mínimo ${quantidadeMinima} ${abaixoDoMinimo.unidade}(s).`,
+      );
+    }
     if (items.length === 0) return toast.error("Inclua ao menos um módulo ou serviço.");
     if (
       selected.some(
@@ -326,9 +308,10 @@ export function NovaPropostaClient({
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {catalog
-                .filter((item) => item.categoria !== "usuario")
+                .filter((item) => item.categoria === "modulo" || item.categoria === "servico")
                 .map((item) => {
                   const checked = selected.includes(item.codigo);
+                  const primeiraFaixa = item.faixas_preco[0];
                   const defaultPrice =
                     clientKind === "escritorio"
                       ? item.preco_escritorio_cents
@@ -358,7 +341,39 @@ export function NovaPropostaClient({
                           </span>
                         </span>
                       </label>
-                      {checked ? (
+                      {checked && primeiraFaixa ? (
+                        <label className="mt-3 block text-xs font-medium">
+                          Quantidade de {item.unidade}(s)
+                          <Input
+                            className="mt-1"
+                            type="number"
+                            min={primeiraFaixa.quantidade_minima}
+                            value={
+                              quantities[item.codigo] ?? String(primeiraFaixa.quantidade_minima)
+                            }
+                            onChange={(event) =>
+                              setQuantities((current) => ({
+                                ...current,
+                                [item.codigo]: event.target.value,
+                              }))
+                            }
+                          />
+                          <span className="mt-1 block text-muted-foreground">
+                            Valor unitário:{" "}
+                            {formatCentsBRL(
+                              precoDoCatalogo(
+                                item,
+                                Number.parseInt(
+                                  quantities[item.codigo] ??
+                                    String(primeiraFaixa.quantidade_minima),
+                                  10,
+                                ),
+                                clientKind,
+                              ),
+                            )}
+                          </span>
+                        </label>
+                      ) : checked ? (
                         <label className="mt-3 block text-xs font-medium">
                           Valor {item.cobranca === "mensal" ? "mensal" : "único"} (R$)
                           <Input
@@ -389,25 +404,26 @@ export function NovaPropostaClient({
           </section>
 
           <section className="rounded-xl border bg-surface p-5">
-            <h2 className="font-semibold">3. Usuários, monitoramento e ativação</h2>
+            <h2 className="font-semibold">3. Usuários</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Informe as quantidades dos tipos de acesso contratados.
+            </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {catalog
                 .filter((item) => item.categoria === "usuario")
                 .map((item) => {
-                  const unit =
-                    clientKind === "escritorio"
-                      ? item.preco_escritorio_cents
-                      : item.preco_departamento_cents;
+                  const quantity = Number.parseInt(quantities[item.codigo] ?? "0", 10) || 0;
+                  const unit = precoDoCatalogo(item, quantity, clientKind);
                   return (
                     <label className="text-sm" key={item.codigo}>
                       {item.nome}
                       <Input
                         className="mt-1"
                         type="number"
-                        min="0"
-                        value={userQuantities[item.codigo] ?? "0"}
+                        min={item.faixas_preco[0]?.quantidade_minima ?? 0}
+                        value={quantities[item.codigo] ?? "0"}
                         onChange={(event) =>
-                          setUserQuantities((current) => ({
+                          setQuantities((current) => ({
                             ...current,
                             [item.codigo]: event.target.value,
                           }))
@@ -420,32 +436,6 @@ export function NovaPropostaClient({
                   );
                 })}
               <label className="text-sm">
-                Usuários limitados
-                <Input
-                  className="mt-1"
-                  type="number"
-                  min="0"
-                  value={limitedUsers}
-                  onChange={(event) => setLimitedUsers(event.target.value)}
-                />
-                <span className="mt-1 block text-xs text-muted-foreground">
-                  A faixa de desconto é aplicada automaticamente.
-                </span>
-              </label>
-              <label className="text-sm">
-                Processos monitorados
-                <Input
-                  className="mt-1"
-                  type="number"
-                  min="0"
-                  value={monitoring}
-                  onChange={(event) => setMonitoring(event.target.value)}
-                />
-                <span className="mt-1 block text-xs text-muted-foreground">
-                  Contratação mínima de 100 processos.
-                </span>
-              </label>
-              <label className="text-sm">
                 Ativação (R$)
                 <Input
                   className="mt-1"
@@ -456,8 +446,53 @@ export function NovaPropostaClient({
             </div>
           </section>
 
+          {catalog.some((item) => item.categoria === "migracao") ? (
+            <section className="rounded-xl border bg-surface p-5">
+              <h2 className="font-semibold">4. Migração de dados</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Selecione o sistema em que o cliente está atualmente.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {catalog
+                  .filter((item) => item.categoria === "migracao")
+                  .map((item) => {
+                    const checked = selected.includes(item.codigo);
+                    const price = precoDoCatalogo(item, 1, clientKind);
+                    return (
+                      <label
+                        key={item.codigo}
+                        className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 ${checked ? "border-accent bg-accent-soft" : ""}`}
+                      >
+                        <input
+                          className="mt-1"
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setSelected((current) =>
+                              checked
+                                ? current.filter((code) => code !== item.codigo)
+                                : [...current, item.codigo],
+                            )
+                          }
+                        />
+                        <span>
+                          <strong className="block text-sm">{item.nome}</strong>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {item.descricao}
+                          </span>
+                          <span className="mt-2 block text-sm font-semibold">
+                            {formatCentsBRL(price)}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+              </div>
+            </section>
+          ) : null}
+
           <section className="rounded-xl border bg-surface p-5">
-            <h2 className="font-semibold">4. Condições e observações</h2>
+            <h2 className="font-semibold">5. Condições e observações</h2>
             <label className="mt-4 block text-sm">
               Prazo e forma de pagamento
               <Textarea

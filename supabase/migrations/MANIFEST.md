@@ -336,3 +336,4 @@ To re-apply on a fresh Supabase project, replay the migrations in version order 
 
 | `20260919093500` | `0311_propostas_comerciais` | Propostas comerciais por organização, com cliente, validade, valores em centavos e itens contratados. RLS por tenant, vínculo opcional com contato e apresentação para impressão em PDF. |
 | `20260921110000` | `0312_catalogo_comercial` | Catálogo comercial configurável por organização para propostas: módulos, tipos de usuário e serviços, com preços distintos para escritórios e departamentos jurídicos, setup, ordenação e ativação. As propostas continuam armazenando seu próprio retrato de preços. |
+| `20260921170000` | `0313_catalogo_propostas_completo` | Catálogo de propostas completo: visibilidade e descrição por item, usuários separados com preços por tipo de cliente, faixas de preço por quantidade e configuração de migrações por sistema de origem. |

@@ -5,13 +5,8 @@ import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
-import { CATALOGO_COMERCIAL_INICIAL } from "@/lib/schemas/proposta-catalogo";
-import {
-  COLUNAS_DA_PROPOSTA,
-  propostaCreateSchema,
-  valorMonitoramento,
-  valorUsuarioLimitado,
-} from "@/lib/schemas/propostas";
+import { CATALOGO_COMERCIAL_INICIAL, precoDoCatalogo } from "@/lib/schemas/proposta-catalogo";
+import { COLUNAS_DA_PROPOSTA, propostaCreateSchema } from "@/lib/schemas/propostas";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +47,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   const supabase = await createClient();
   const { data: catalogRows, error: catalogError } = await supabase
     .from("proposal_catalog_items")
-    .select("codigo,categoria,preco_escritorio_cents,preco_departamento_cents,setup_cents")
+    .select(
+      "codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,ativo,ordem",
+    )
     .eq("organization_id", authz.org.orgId)
     .eq("ativo", true);
   if (catalogError)
@@ -60,30 +57,43 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const effectiveCatalog = catalogRows?.length ? catalogRows : CATALOGO_COMERCIAL_INICIAL;
   const catalogByCode = new Map(effectiveCatalog.map((item) => [item.codigo, item]));
-  const specialCodes = new Set(["usuarios_limitados", "monitoramento_processos", "ativacao"]);
+  const specialCodes = new Set(["ativacao"]);
   const itensConferidos = parsed.data.items.map((item) => {
     let unitario = item.valor_unitario_cents;
     const isSetup = item.codigo.endsWith("_setup");
     const catalogCode = isSetup ? item.codigo.slice(0, -6) : item.codigo;
     const catalogItem = catalogByCode.get(catalogCode);
     if (!specialCodes.has(item.codigo) && !catalogItem) unitario = -1;
-    if (catalogItem?.categoria === "usuario" && !isSetup) {
-      unitario =
-        parsed.data.client_kind === "escritorio"
-          ? catalogItem.preco_escritorio_cents
-          : catalogItem.preco_departamento_cents;
-    }
+    if (
+      catalogItem &&
+      !isSetup &&
+      (catalogItem.categoria === "usuario" ||
+        catalogItem.categoria === "migracao" ||
+        catalogItem.faixas_preco.length > 0)
+    )
+      unitario = precoDoCatalogo(catalogItem, item.quantidade, parsed.data.client_kind);
+    if (
+      catalogItem?.faixas_preco.length &&
+      item.quantidade < catalogItem.faixas_preco[0].quantidade_minima
+    )
+      unitario = -1;
     if (catalogItem && isSetup) unitario = catalogItem.setup_cents;
-    if (item.categoria === "usuario" && item.codigo === "usuarios_limitados")
-      unitario = valorUsuarioLimitado(item.quantidade);
-    if (item.categoria === "monitoramento" && item.codigo === "monitoramento_processos")
-      unitario = valorMonitoramento(item.quantidade);
-    return { ...item, valor_unitario_cents: unitario, total_cents: unitario * item.quantidade };
+    return {
+      ...item,
+      unidade: catalogItem?.unidade ?? item.unidade,
+      valor_unitario_cents: unitario,
+      total_cents: unitario * item.quantidade,
+    };
   });
   if (itensConferidos.some((item) => item.valor_unitario_cents < 0)) {
-    return fail("validation_failed", "A proposta contém um módulo desconhecido.", 422, {
-      requestId,
-    });
+    return fail(
+      "validation_failed",
+      "A proposta contém um item desconhecido ou abaixo da quantidade mínima.",
+      422,
+      {
+        requestId,
+      },
+    );
   }
 
   const mensal = itensConferidos
