@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CATALOGO_COMERCIAL_INICIAL,
+  catalogoComercialEfetivo,
   catalogoComercialSchema,
   precoDoCatalogo,
 } from "./proposta-catalogo";
@@ -13,6 +14,22 @@ describe("catálogo comercial configurável", () => {
     expect(catalogoComercialSchema.safeParse({ itens: CATALOGO_COMERCIAL_INICIAL }).success).toBe(
       true,
     );
+  });
+
+  it("combina o catálogo padrão com itens já cadastrados", () => {
+    const personalizado = {
+      ...CATALOGO_COMERCIAL_INICIAL[0]!,
+      nome: "Gestão personalizada",
+      ativo: false,
+    };
+    const resultado = catalogoComercialEfetivo([personalizado]);
+
+    expect(resultado.find((item) => item.codigo === personalizado.codigo)).toMatchObject({
+      nome: "Gestão personalizada",
+      ativo: false,
+    });
+    expect(resultado.some((item) => item.codigo === "publicacoes")).toBe(true);
+    expect(resultado.some((item) => item.codigo === "monitoramento_processos")).toBe(true);
   });
 
   it("aplica a faixa por quantidade e o preço do tipo de cliente", () => {

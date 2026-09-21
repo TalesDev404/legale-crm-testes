@@ -5,7 +5,11 @@ import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
-import { CATALOGO_COMERCIAL_INICIAL, precoDoCatalogo } from "@/lib/schemas/proposta-catalogo";
+import {
+  catalogoComercialEfetivo,
+  precoDoCatalogo,
+  type ItemDoCatalogo,
+} from "@/lib/schemas/proposta-catalogo";
 import { COLUNAS_DA_PROPOSTA, propostaCreateSchema } from "@/lib/schemas/propostas";
 import { createClient } from "@/lib/supabase/server";
 
@@ -55,7 +59,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (catalogError)
     return fail("internal_error", "Erro ao conferir o catálogo comercial.", 500, { requestId });
 
-  const effectiveCatalog = catalogRows?.length ? catalogRows : CATALOGO_COMERCIAL_INICIAL;
+  const effectiveCatalog = catalogoComercialEfetivo(catalogRows as ItemDoCatalogo[] | null);
   const catalogByCode = new Map(effectiveCatalog.map((item) => [item.codigo, item]));
   const specialCodes = new Set(["ativacao"]);
   const itensConferidos = parsed.data.items.map((item) => {
@@ -63,6 +67,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const isSetup = item.codigo.endsWith("_setup");
     const catalogCode = isSetup ? item.codigo.slice(0, -6) : item.codigo;
     const catalogItem = catalogByCode.get(catalogCode);
+    const primeiraFaixa = catalogItem?.faixas_preco[0];
     if (!specialCodes.has(item.codigo) && !catalogItem) unitario = -1;
     if (
       catalogItem &&
@@ -72,11 +77,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         catalogItem.faixas_preco.length > 0)
     )
       unitario = precoDoCatalogo(catalogItem, item.quantidade, parsed.data.client_kind);
-    if (
-      catalogItem?.faixas_preco.length &&
-      item.quantidade < catalogItem.faixas_preco[0].quantidade_minima
-    )
-      unitario = -1;
+    if (primeiraFaixa && item.quantidade < primeiraFaixa.quantidade_minima) unitario = -1;
     if (catalogItem && isSetup) unitario = catalogItem.setup_cents;
     return {
       ...item,

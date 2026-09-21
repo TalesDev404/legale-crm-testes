@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
-import { CATALOGO_COMERCIAL_INICIAL, type ItemDoCatalogo } from "@/lib/schemas/proposta-catalogo";
+import { catalogoComercialEfetivo, type ItemDoCatalogo } from "@/lib/schemas/proposta-catalogo";
 import { CatalogoPropostasClient } from "./_catalogo-v2";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Catálogo comercial" };
@@ -20,7 +20,7 @@ export default async function Page() {
     .order("ordem");
   return (
     <CatalogoPropostasClient
-      initial={(data?.length ? data : CATALOGO_COMERCIAL_INICIAL) as ItemDoCatalogo[]}
+      initial={catalogoComercialEfetivo(data as ItemDoCatalogo[] | null)}
       canEdit={org.role === "admin"}
     />
   );

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
-import { CATALOGO_COMERCIAL_INICIAL, type ItemDoCatalogo } from "@/lib/schemas/proposta-catalogo";
+import { catalogoComercialEfetivo, type ItemDoCatalogo } from "@/lib/schemas/proposta-catalogo";
 
 import { NovaPropostaClient } from "./_client";
 
@@ -55,7 +55,7 @@ export default async function NovaPropostaPage() {
         organization?.legal_name ??
         "Nossa empresa"
       }
-      catalog={(catalog?.length ? catalog : CATALOGO_COMERCIAL_INICIAL) as ItemDoCatalogo[]}
+      catalog={catalogoComercialEfetivo(catalog as ItemDoCatalogo[] | null)}
     />
   );
 }
