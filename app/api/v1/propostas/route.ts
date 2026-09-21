@@ -67,6 +67,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const isSetup = item.codigo.endsWith("_setup");
     const catalogCode = isSetup ? item.codigo.slice(0, -6) : item.codigo;
     const catalogItem = catalogByCode.get(catalogCode);
+    const primeiraFaixa = catalogItem?.faixas_preco[0];
     if (!specialCodes.has(item.codigo) && !catalogItem) unitario = -1;
     if (
       catalogItem &&
@@ -76,11 +77,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         catalogItem.faixas_preco.length > 0)
     )
       unitario = precoDoCatalogo(catalogItem, item.quantidade, parsed.data.client_kind);
-    if (
-      catalogItem?.faixas_preco.length &&
-      item.quantidade < catalogItem.faixas_preco[0].quantidade_minima
-    )
-      unitario = -1;
+    if (primeiraFaixa && item.quantidade < primeiraFaixa.quantidade_minima) unitario = -1;
     if (catalogItem && isSetup) unitario = catalogItem.setup_cents;
     return {
       ...item,
