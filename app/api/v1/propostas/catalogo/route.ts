@@ -5,8 +5,9 @@ import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import {
+  catalogoComercialEfetivo,
   catalogoComercialSchema,
-  CATALOGO_COMERCIAL_INICIAL,
+  type ItemDoCatalogo,
 } from "@/lib/schemas/proposta-catalogo";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,7 +25,7 @@ export async function GET() {
     .order("ordem");
   if (error)
     return fail("internal_error", "Erro ao carregar o catálogo comercial.", 500, { requestId });
-  return ok(data?.length ? data : CATALOGO_COMERCIAL_INICIAL, { requestId });
+  return ok(catalogoComercialEfetivo(data as ItemDoCatalogo[] | null), { requestId });
 }
 
 export async function PUT(req: NextRequest) {

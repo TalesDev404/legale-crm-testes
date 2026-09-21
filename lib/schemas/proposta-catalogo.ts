@@ -258,3 +258,11 @@ export const CATALOGO_COMERCIAL_INICIAL: ItemDoCatalogo[] = [
     ordem: 200,
   },
 ];
+
+export function catalogoComercialEfetivo(
+  cadastrados: ItemDoCatalogo[] | null | undefined,
+): ItemDoCatalogo[] {
+  const porCodigo = new Map(CATALOGO_COMERCIAL_INICIAL.map((item) => [item.codigo, item] as const));
+  for (const item of cadastrados ?? []) porCodigo.set(item.codigo, item);
+  return [...porCodigo.values()].sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome));
+}

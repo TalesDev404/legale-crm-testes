@@ -5,7 +5,11 @@ import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
-import { CATALOGO_COMERCIAL_INICIAL, precoDoCatalogo } from "@/lib/schemas/proposta-catalogo";
+import {
+  catalogoComercialEfetivo,
+  precoDoCatalogo,
+  type ItemDoCatalogo,
+} from "@/lib/schemas/proposta-catalogo";
 import { COLUNAS_DA_PROPOSTA, propostaCreateSchema } from "@/lib/schemas/propostas";
 import { createClient } from "@/lib/supabase/server";
 
@@ -55,7 +59,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (catalogError)
     return fail("internal_error", "Erro ao conferir o catálogo comercial.", 500, { requestId });
 
-  const effectiveCatalog = catalogRows?.length ? catalogRows : CATALOGO_COMERCIAL_INICIAL;
+  const effectiveCatalog = catalogoComercialEfetivo(catalogRows as ItemDoCatalogo[] | null);
   const catalogByCode = new Map(effectiveCatalog.map((item) => [item.codigo, item]));
   const specialCodes = new Set(["ativacao"]);
   const itensConferidos = parsed.data.items.map((item) => {
