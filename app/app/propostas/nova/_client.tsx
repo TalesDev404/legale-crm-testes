@@ -213,7 +213,7 @@ export function NovaPropostaClient({
   }
 
   return (
-    <main className="mx-auto w-full max-w-7xl p-6" data-testid="nova-proposta">
+    <main className="mx-auto w-full max-w-7xl" data-testid="nova-proposta">
       <header className="mb-6">
         <p className="text-sm font-medium text-accent">Propostas</p>
         <h1 className="text-2xl font-semibold">Nova proposta</h1>
@@ -231,7 +231,7 @@ export function NovaPropostaClient({
                 <select
                   value={contactId}
                   onChange={(event) => chooseContact(event.target.value)}
-                  className="mt-1 h-10 w-full rounded-sm border bg-bg px-3"
+                  className="mt-1 h-10 w-full rounded-lg border border-border bg-surface px-3 outline-hidden transition-colors hover:border-border-strong focus:border-accent-500 focus:ring-2 focus:ring-accent-soft"
                 >
                   <option value="">Cliente ainda não cadastrado</option>
                   {contacts.map((contact) => (
@@ -254,7 +254,7 @@ export function NovaPropostaClient({
                 <select
                   value={clientKind}
                   onChange={(event) => setClientKind(event.target.value as typeof clientKind)}
-                  className="mt-1 h-10 w-full rounded-sm border bg-bg px-3"
+                  className="mt-1 h-10 w-full rounded-lg border border-border bg-surface px-3 outline-hidden transition-colors hover:border-border-strong focus:border-accent-500 focus:ring-2 focus:ring-accent-soft"
                 >
                   <option value="departamento_juridico">Departamento jurídico</option>
                   <option value="escritorio">Escritório de advocacia</option>
