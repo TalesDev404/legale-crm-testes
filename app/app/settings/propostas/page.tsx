@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { createClient } from "@/lib/supabase/server";
 import { catalogoComercialEfetivo, type ItemDoCatalogo } from "@/lib/schemas/proposta-catalogo";
-import { CatalogoPropostasClient } from "./_catalogo-v2";
+import { CatalogoPropostasClient } from "./_catalogo-v3";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Catálogo comercial" };
 export default async function Page() {

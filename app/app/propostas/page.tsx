@@ -34,7 +34,7 @@ export default async function PropostasPage() {
   const propostas = (data ?? []) as unknown as PropostaComercial[];
 
   return (
-    <main className="mx-auto w-full max-w-6xl p-6" data-testid="tela-propostas">
+    <main className="mx-auto w-full max-w-6xl" data-testid="tela-propostas">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Propostas</h1>
