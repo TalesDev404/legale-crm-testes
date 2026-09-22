@@ -10,7 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api/client";
 import { formatCentsBRL, parseReaisToCents } from "@/lib/money";
-import { precoDoCatalogo, type ItemDoCatalogo } from "@/lib/schemas/proposta-catalogo";
+import {
+  codigoDaOpcao,
+  precoDoCatalogo,
+  REQUISITOS_DA_CONTRATACAO,
+  type ItemDoCatalogo,
+} from "@/lib/schemas/proposta-catalogo";
 import { type ItemDaProposta, type PropostaComercial } from "@/lib/schemas/propostas";
 
 type Contact = {
@@ -52,6 +57,7 @@ export function NovaPropostaClient({
   const [issueDate, setIssueDate] = React.useState(hoje);
   const [validUntil, setValidUntil] = React.useState(somarDias(hoje, 15));
   const [selected, setSelected] = React.useState<string[]>([]);
+  const [selectedOptions, setSelectedOptions] = React.useState<Record<string, string[]>>({});
   const [modulePrices, setModulePrices] = React.useState<Record<string, string>>({});
   const [quantities, setQuantities] = React.useState<Record<string, string>>({});
   const [activation, setActivation] = React.useState("0,00");
@@ -69,6 +75,43 @@ export function NovaPropostaClient({
     setClientName(name);
     setRecipientName(name);
     setRecipientEmail(contact.email ?? "");
+  }
+
+  function toggleItem(item: ItemDoCatalogo, checked: boolean) {
+    const requisitos = REQUISITOS_DA_CONTRATACAO[item.codigo] ?? [];
+    setSelected((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.delete(item.codigo);
+        for (const requisito of requisitos) next.delete(requisito.codigo);
+      } else {
+        next.add(item.codigo);
+        for (const requisito of requisitos) {
+          const itemExigido = catalog.find((candidate) => candidate.codigo === requisito.codigo);
+          if (itemExigido && itemExigido.categoria !== "usuario") next.add(requisito.codigo);
+        }
+      }
+      return [...next];
+    });
+    setQuantities((current) => {
+      const next = { ...current };
+      for (const requisito of requisitos) {
+        const itemExigido = catalog.find((candidate) => candidate.codigo === requisito.codigo);
+        if (itemExigido?.categoria !== "usuario") continue;
+        next[requisito.codigo] = checked
+          ? "0"
+          : String(
+              Math.max(
+                requisito.quantidade_minima,
+                Number.parseInt(next[requisito.codigo] ?? "0", 10) || 0,
+              ),
+            );
+      }
+      return next;
+    });
+    if (checked) {
+      setSelectedOptions((current) => ({ ...current, [item.codigo]: [] }));
+    }
   }
 
   const items = React.useMemo<ItemDaProposta[]>(() => {
@@ -105,6 +148,30 @@ export function NovaPropostaClient({
         };
       })
       .filter((item) => item.quantidade > 0);
+    catalog
+      .filter((item) => selected.includes(item.codigo) && item.opcoes_preco.length > 0)
+      .forEach((item) => {
+        const escolhidas = new Set(selectedOptions[item.codigo] ?? []);
+        item.opcoes_preco
+          .filter((opcao) => escolhidas.has(opcao.codigo))
+          .forEach((opcao) => {
+            const price =
+              clientKind === "escritorio"
+                ? opcao.preco_escritorio_cents
+                : opcao.preco_departamento_cents;
+            result.push({
+              codigo: codigoDaOpcao(item.codigo, opcao.codigo),
+              nome: `${item.nome} — ${opcao.nome}`,
+              descricao: opcao.descricao || `Contexto contratado para ${item.nome}.`,
+              unidade: "contexto",
+              quantidade: 1,
+              valor_unitario_cents: price,
+              total_cents: price,
+              cobranca: item.cobranca,
+              categoria: "servico",
+            });
+          });
+      });
     catalog
       .filter((item) => item.categoria === "usuario")
       .forEach((item) => {
@@ -153,7 +220,7 @@ export function NovaPropostaClient({
         categoria: "ativacao",
       });
     return result;
-  }, [activation, catalog, clientKind, modulePrices, quantities, selected]);
+  }, [activation, catalog, clientKind, modulePrices, quantities, selected, selectedOptions]);
 
   const monthly = items
     .filter((item) => item.cobranca === "mensal")
@@ -178,6 +245,33 @@ export function NovaPropostaClient({
       return toast.error(
         `${abaixoDoMinimo.nome} exige no mínimo ${quantidadeMinima} ${abaixoDoMinimo.unidade}(s).`,
       );
+    }
+    const semOpcoesObrigatorias = catalog.find(
+      (item) =>
+        selected.includes(item.codigo) &&
+        (selectedOptions[item.codigo]?.length ?? 0) < item.minimo_opcoes,
+    );
+    if (semOpcoesObrigatorias) {
+      return toast.error(
+        `Selecione ao menos ${semOpcoesObrigatorias.minimo_opcoes} contexto(s) em ${semOpcoesObrigatorias.nome}.`,
+      );
+    }
+    for (const codigoSelecionado of selected) {
+      const requisitos = REQUISITOS_DA_CONTRATACAO[codigoSelecionado] ?? [];
+      for (const requisito of requisitos) {
+        const itemExigido = catalog.find((item) => item.codigo === requisito.codigo);
+        const quantidade =
+          itemExigido?.categoria === "usuario"
+            ? Number.parseInt(quantities[requisito.codigo] ?? "0", 10) || 0
+            : selected.includes(requisito.codigo)
+              ? Number.parseInt(quantities[requisito.codigo] ?? "1", 10) || 1
+              : 0;
+        if (quantidade < requisito.quantidade_minima) {
+          return toast.error(
+            `${catalog.find((item) => item.codigo === codigoSelecionado)?.nome ?? codigoSelecionado} exige ${requisito.quantidade_minima} ${itemExigido?.nome ?? requisito.codigo}.`,
+          );
+        }
+      }
     }
     if (items.length === 0) return toast.error("Inclua ao menos um módulo ou serviço.");
     if (
@@ -311,6 +405,11 @@ export function NovaPropostaClient({
                 .filter((item) => item.categoria === "modulo" || item.categoria === "servico")
                 .map((item) => {
                   const checked = selected.includes(item.codigo);
+                  const exigidoPorSelecionado = selected.some((codigo) =>
+                    (REQUISITOS_DA_CONTRATACAO[codigo] ?? []).some(
+                      (requisito) => requisito.codigo === item.codigo,
+                    ),
+                  );
                   const primeiraFaixa = item.faixas_preco[0];
                   const defaultPrice =
                     clientKind === "escritorio"
@@ -325,17 +424,17 @@ export function NovaPropostaClient({
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={() =>
-                            setSelected((current) =>
-                              checked
-                                ? current.filter((code) => code !== item.codigo)
-                                : [...current, item.codigo],
-                            )
-                          }
+                          disabled={exigidoPorSelecionado}
+                          onChange={() => toggleItem(item, checked)}
                           className="mt-1"
                         />
                         <span>
                           <strong className="block text-sm">{item.nome}</strong>
+                          {exigidoPorSelecionado ? (
+                            <span className="mt-1 block text-[11px] font-medium text-accent">
+                              Incluído obrigatoriamente com o módulo selecionado
+                            </span>
+                          ) : null}
                           <span className="mt-1 block text-xs text-muted-foreground">
                             {item.descricao}
                           </span>
@@ -396,6 +495,46 @@ export function NovaPropostaClient({
                             </span>
                           ) : null}
                         </label>
+                      ) : null}
+                      {checked && item.opcoes_preco.length > 0 ? (
+                        <div className="mt-3 space-y-2 border-t border-accent/20 pt-3">
+                          <p className="text-xs font-semibold">
+                            Contextos contratados
+                            {item.minimo_opcoes > 0 ? ` (mínimo ${item.minimo_opcoes})` : ""}
+                          </p>
+                          {item.opcoes_preco.map((opcao) => {
+                            const optionChecked = (selectedOptions[item.codigo] ?? []).includes(
+                              opcao.codigo,
+                            );
+                            const optionPrice =
+                              clientKind === "escritorio"
+                                ? opcao.preco_escritorio_cents
+                                : opcao.preco_departamento_cents;
+                            return (
+                              <label
+                                className="flex cursor-pointer items-center justify-between gap-3 rounded-md bg-surface/80 px-3 py-2 text-xs"
+                                key={opcao.codigo}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={optionChecked}
+                                    onChange={() =>
+                                      setSelectedOptions((current) => {
+                                        const next = new Set(current[item.codigo] ?? []);
+                                        if (optionChecked) next.delete(opcao.codigo);
+                                        else next.add(opcao.codigo);
+                                        return { ...current, [item.codigo]: [...next] };
+                                      })
+                                    }
+                                  />
+                                  {opcao.nome}
+                                </span>
+                                <strong>{formatCentsBRL(optionPrice)}/mês</strong>
+                              </label>
+                            );
+                          })}
+                        </div>
                       ) : null}
                     </div>
                   );
@@ -467,13 +606,7 @@ export function NovaPropostaClient({
                           className="mt-1"
                           type="checkbox"
                           checked={checked}
-                          onChange={() =>
-                            setSelected((current) =>
-                              checked
-                                ? current.filter((code) => code !== item.codigo)
-                                : [...current, item.codigo],
-                            )
-                          }
+                          onChange={() => toggleItem(item, checked)}
                         />
                         <span>
                           <strong className="block text-sm">{item.nome}</strong>

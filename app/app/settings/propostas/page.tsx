@@ -14,7 +14,7 @@ export default async function Page() {
   const { data } = await db
     .from("proposal_catalog_items")
     .select(
-      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,ativo,ordem",
+      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,opcoes_preco,minimo_opcoes,ativo,ordem",
     )
     .eq("organization_id", org.orgId)
     .order("ordem");

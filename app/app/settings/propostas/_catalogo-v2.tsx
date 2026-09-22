@@ -30,6 +30,8 @@ function novoItem(secao: Secao, ordem: number): ItemDoCatalogo {
     setup_cents: 0,
     unidade: secao === "usuarios" ? "usuário" : secao === "migracoes" ? "migração" : "unidade",
     faixas_preco: [],
+    opcoes_preco: [],
+    minimo_opcoes: 0,
     ativo: true,
     ordem,
   };

@@ -19,7 +19,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("proposal_catalog_items")
     .select(
-      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,ativo,ordem",
+      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,opcoes_preco,minimo_opcoes,ativo,ordem",
     )
     .eq("organization_id", authz.org.orgId)
     .order("ordem");
@@ -46,7 +46,7 @@ export async function PUT(req: NextRequest) {
     .from("proposal_catalog_items")
     .upsert(linhas, { onConflict: "organization_id,codigo" })
     .select(
-      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,ativo,ordem",
+      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,opcoes_preco,minimo_opcoes,ativo,ordem",
     )
     .order("ordem");
   if (error)
