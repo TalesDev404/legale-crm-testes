@@ -19,7 +19,7 @@ export default async function GetStartedPage() {
   if (activeOrg) redirect("/app/inbox");
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f7f5fb] p-6">
+    <main className="legale-public-theme flex min-h-screen items-center justify-center bg-[#f7f5fb] p-6">
       <Card className="w-full max-w-md space-y-6 rounded-2xl p-8 text-center shadow-lg">
         <MarcaLegale className="justify-center" />
         <div>

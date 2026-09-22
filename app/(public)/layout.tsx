@@ -22,11 +22,11 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <IdiomaProvider locale={locale}>
-      <main className="grid min-h-screen bg-[#f7f5fb] lg:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)]">
+      <main className="legale-public-theme grid min-h-screen bg-[#f7f5fb] lg:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)]">
         <section className="relative hidden overflow-hidden bg-[#24113f] p-12 text-white lg:flex lg:flex-col lg:justify-between">
-          <div className="absolute -top-32 -right-24 h-80 w-80 rounded-full bg-[#7c3aed]/30 blur-3xl" />
-          <div className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-[#30d2b2]/18 blur-3xl" />
-          <MarcaLegale className="relative rounded-2xl bg-white px-4 py-2 shadow-lg" />
+          <div className="absolute -top-32 -right-24 h-80 w-80 rounded-full bg-[#8e24fe]/30 blur-3xl" />
+          <div className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-[#34eaca]/18 blur-3xl" />
+          <MarcaLegale className="relative self-start rounded-xl bg-white px-5 py-3 shadow-lg" />
 
           <div className="relative max-w-lg pb-8">
             <p className="text-xs font-semibold tracking-[0.24em] text-[#cbb7ff] uppercase">
