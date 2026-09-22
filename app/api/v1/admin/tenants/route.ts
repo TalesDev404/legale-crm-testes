@@ -21,6 +21,8 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(30),
 });
 
+const CRM_LEGALE_USA_ORGANIZACAO_UNICA = true;
+
 // ---------------------------------------------------------------------------
 // Cursor helpers
 // ---------------------------------------------------------------------------
@@ -151,6 +153,14 @@ export async function GET(req: NextRequest) {
 // ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
+  // O projeto é o CRM interno da Legale e não oferece criação de outras
+  // organizações, inclusive para administradores de plataforma.
+  if (CRM_LEGALE_USA_ORGANIZACAO_UNICA) {
+    return fail("forbidden", "O CRM Comercial Legale utiliza uma única organização.", 403, {
+      requestId: randomUUID(),
+    });
+  }
+
   const supportDenied = await requireSupportWrite();
   if (supportDenied) return supportDenied;
 

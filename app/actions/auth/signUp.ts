@@ -10,7 +10,6 @@ import {
   type SignupComConviteInput,
 } from "@/lib/auth/schemas";
 import { verifyInviteToken } from "@/lib/auth/invite-token";
-import { modoDeCadastro } from "@/lib/auth/politica-de-cadastro";
 import { audit, hashEmail } from "@/lib/audit";
 import { authRateLimited, AUTH_LIMITS } from "@/lib/auth/rate-limit";
 import { env } from "@/lib/env";
@@ -122,7 +121,7 @@ export async function signUp(
   // direto, e sem esta guarda o modo `so_convite` seria decoração. A ordem
   // importa — só se pergunta a política DEPOIS de o convite ter sido validado
   // acima, senão um convite legítimo seria barrado.
-  if (convite === null && (await modoDeCadastro()) === "so_convite") {
+  if (convite === null) {
     await audit({
       action: "auth.signup_failed",
       metadata: { email_hash: hashEmail(parsed.data.email), reason: "somente_convite" },

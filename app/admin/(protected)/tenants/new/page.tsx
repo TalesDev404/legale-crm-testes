@@ -1,7 +1,7 @@
-import { NewTenantForm } from "./_form";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Novo Tenant — Admin Plataforma" };
+export const metadata = { title: "Organização — Administração Legale" };
 
 export default function NewTenantPage() {
-  return <NewTenantForm />;
+  redirect("/admin/tenants");
 }

@@ -2,9 +2,7 @@ import Link from "next/link";
 
 import { SignupForm } from "@/components/auth/SignupForm";
 import { Button } from "@/components/ui/button";
-import { branding } from "@/lib/branding";
 import { verifyInviteToken } from "@/lib/auth/invite-token";
-import { modoDeCadastro } from "@/lib/auth/politica-de-cadastro";
 import { createClient } from "@/lib/supabase/server";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -52,24 +50,17 @@ export default async function SignupPage({
   );
   const t = (texto: string) => traduzir(texto, idioma);
 
-  // Convite VÁLIDO passa em qualquer modo — é o ponto inteiro do convite.
-  const soPorConvite = !convite && (await modoDeCadastro()) === "so_convite";
-
-  if (soPorConvite) {
+  // O CRM Comercial Legale é uma única plataforma interna. Conta nova só nasce
+  // para aceitar um convite emitido pela administração da equipe.
+  if (!convite) {
     return (
       <div className="space-y-6 text-center">
         <div className="space-y-1.5">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {t("Cadastro apenas por convite")}
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Acesso exclusivo por convite</h1>
           <p className="text-sm text-muted-foreground">
             {conviteExpirado
-              ? t(
-                  "Esse convite expirou ou não é mais válido. Peça um novo a quem te convidou — esta instalação não aceita cadastro sem convite.",
-                )
-              : t(
-                  "Esta instalação não aceita cadastro aberto. Se você foi convidado, use o link que chegou no seu e-mail — ele já vem com o convite.",
-                )}
+              ? "Este convite expirou ou não é mais válido. Peça um novo ao administrador do CRM."
+              : "O CRM Comercial Legale não possui cadastro aberto. Os acessos são criados pela administração da equipe."}
           </p>
         </div>
         <Button asChild className="w-full">
@@ -82,24 +73,14 @@ export default async function SignupPage({
   return (
     <div className="space-y-6">
       <div className="space-y-1.5 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("Criar conta")}</h1>
+        <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">
+          Comercial Legale
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">Ativar meu acesso</h1>
         <p className="text-sm text-muted-foreground">
-          {convite
-            ? t("Crie sua senha para entrar na empresa que te convidou")
-            : `${t("Comece a usar o")} ${branding().name} ${t("em minutos")}`}
+          Crie sua senha para entrar no CRM da Legale.
         </p>
       </div>
-
-      {conviteExpirado && (
-        <p
-          role="alert"
-          className="rounded-md border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm dark:border-amber-500/30 dark:bg-amber-950/20"
-        >
-          {t(
-            "Esse convite expirou ou não é mais válido. Peça um novo a quem te convidou — criar uma conta agora abriria uma empresa nova, e não é isso que você quer.",
-          )}
-        </p>
-      )}
 
       <SignupForm convite={convite} />
 

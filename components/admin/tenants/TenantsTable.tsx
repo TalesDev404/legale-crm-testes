@@ -21,10 +21,7 @@ import { useT } from "@/hooks/i18n/useT";
 // Status badge
 // ---------------------------------------------------------------------------
 
-const STATUS_VARIANTS: Record<
-  string,
-  "success" | "info" | "warning" | "error" | "neutral"
-> = {
+const STATUS_VARIANTS: Record<string, "success" | "info" | "warning" | "error" | "neutral"> = {
   active: "success",
   onboarding: "info",
   suspended: "warning",
@@ -38,13 +35,7 @@ const STATUS_LABELS: Record<string, string> = {
   redacted: "Redigido",
 };
 
-function StatusBadge({
-  status,
-  onboardedAt,
-}: {
-  status: string;
-  onboardedAt: string | null;
-}) {
+function StatusBadge({ status, onboardedAt }: { status: string; onboardedAt: string | null }) {
   const t = useT();
   // 'onboarding' não existe no banco — é derivado: ativo sem onboarding concluído.
   const effective = status === "active" && !onboardedAt ? "onboarding" : status;
@@ -68,9 +59,7 @@ function formatDate(iso: string | null, idioma: string): string {
   }).format(new Date(iso));
 }
 
-function extractCount(
-  arr: Array<{ count: number }> | null | undefined,
-): number {
+function extractCount(arr: Array<{ count: number }> | null | undefined): number {
   if (!arr || arr.length === 0) return 0;
   return arr[0]?.count ?? 0;
 }
@@ -94,11 +83,18 @@ export function TenantsTableSkeleton() {
       <Table>
         <TableHeader>
           <TableRow>
-            {["Slug", t("Nome"), "CNPJ", t("Status"), t("Users"), t("Conversas"), t("Criado em"), ""].map(
-              (h) => (
-                <TableHead key={h}>{h}</TableHead>
-              ),
-            )}
+            {[
+              "Slug",
+              t("Nome"),
+              "CNPJ",
+              t("Status"),
+              t("Users"),
+              t("Conversas"),
+              t("Criado em"),
+              "",
+            ].map((h) => (
+              <TableHead key={h}>{h}</TableHead>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -141,9 +137,7 @@ export function TenantsTable({
       <div className="flex flex-col items-center justify-center gap-3 rounded-md border py-16 text-center text-muted-foreground">
         <Buildings size={36} weight="duotone" className="opacity-40" aria-hidden />
         <p className="text-sm font-medium">{t("Nenhum tenant encontrado")}</p>
-        <p className="max-w-xs text-xs opacity-70">
-          {t("Ajuste os filtros ou crie um novo tenant.")}
-        </p>
+        <p className="max-w-xs text-xs opacity-70">{t("Ajuste os filtros da consulta.")}</p>
       </div>
     );
   }
@@ -200,12 +194,7 @@ export function TenantsTable({
 
       {hasNextPage && (
         <div className="flex justify-center">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onLoadMore}
-            disabled={isFetchingNextPage}
-          >
+          <Button variant="outline" size="sm" onClick={onLoadMore} disabled={isFetchingNextPage}>
             {isFetchingNextPage ? t("Carregando...") : t("Carregar mais")}
           </Button>
         </div>
