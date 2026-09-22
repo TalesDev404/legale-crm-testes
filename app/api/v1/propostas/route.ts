@@ -7,7 +7,9 @@ import { requireRole } from "@/lib/auth/require-role";
 import { requireSupportWrite } from "@/lib/impersonate/support";
 import {
   catalogoComercialEfetivo,
+  erroNaComposicaoDaProposta,
   precoDoCatalogo,
+  separarCodigoDaOpcao,
   type ItemDoCatalogo,
 } from "@/lib/schemas/proposta-catalogo";
 import { COLUNAS_DA_PROPOSTA, propostaCreateSchema } from "@/lib/schemas/propostas";
@@ -52,18 +54,48 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { data: catalogRows, error: catalogError } = await supabase
     .from("proposal_catalog_items")
     .select(
-      "codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,ativo,ordem",
+      "codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,opcoes_preco,minimo_opcoes,ativo,ordem",
     )
-    .eq("organization_id", authz.org.orgId)
-    .eq("ativo", true);
+    .eq("organization_id", authz.org.orgId);
   if (catalogError)
     return fail("internal_error", "Erro ao conferir o catálogo comercial.", 500, { requestId });
 
-  const effectiveCatalog = catalogoComercialEfetivo(catalogRows as ItemDoCatalogo[] | null);
+  const effectiveCatalog = catalogoComercialEfetivo(catalogRows as ItemDoCatalogo[] | null).filter(
+    (item) => item.ativo,
+  );
   const catalogByCode = new Map(effectiveCatalog.map((item) => [item.codigo, item]));
   const specialCodes = new Set(["ativacao"]);
+  const selectedCodes = new Set(
+    parsed.data.items
+      .map((item) => item.codigo)
+      .filter((codigo) => !codigo.endsWith("_setup") && !separarCodigoDaOpcao(codigo)),
+  );
   const itensConferidos = parsed.data.items.map((item) => {
     let unitario = item.valor_unitario_cents;
+    const opcaoSeparada = separarCodigoDaOpcao(item.codigo);
+    if (opcaoSeparada) {
+      const [catalogCode, opcaoCodigo] = opcaoSeparada;
+      const catalogItem = catalogByCode.get(catalogCode);
+      const opcao = catalogItem?.opcoes_preco.find((candidate) => candidate.codigo === opcaoCodigo);
+      if (!catalogItem || !opcao || !selectedCodes.has(catalogCode)) {
+        return { ...item, valor_unitario_cents: -1, total_cents: -1 };
+      }
+      unitario =
+        parsed.data.client_kind === "escritorio"
+          ? opcao.preco_escritorio_cents
+          : opcao.preco_departamento_cents;
+      return {
+        ...item,
+        nome: `${catalogItem.nome} — ${opcao.nome}`,
+        descricao: opcao.descricao || `Contexto contratado para ${catalogItem.nome}.`,
+        unidade: "contexto",
+        quantidade: 1,
+        valor_unitario_cents: unitario,
+        total_cents: unitario,
+        cobranca: catalogItem.cobranca,
+        categoria: "servico" as const,
+      };
+    }
     const isSetup = item.codigo.endsWith("_setup");
     const catalogCode = isSetup ? item.codigo.slice(0, -6) : item.codigo;
     const catalogItem = catalogByCode.get(catalogCode);
@@ -82,6 +114,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return {
       ...item,
       unidade: catalogItem?.unidade ?? item.unidade,
+      cobranca: isSetup ? "unica" : (catalogItem?.cobranca ?? item.cobranca),
       valor_unitario_cents: unitario,
       total_cents: unitario * item.quantidade,
     };
@@ -95,6 +128,11 @@ export async function POST(req: NextRequest): Promise<Response> {
         requestId,
       },
     );
+  }
+
+  const erroDeComposicao = erroNaComposicaoDaProposta(effectiveCatalog, itensConferidos);
+  if (erroDeComposicao) {
+    return fail("validation_failed", erroDeComposicao, 422, { requestId });
   }
 
   const mensal = itensConferidos

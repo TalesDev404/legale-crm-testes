@@ -4,6 +4,8 @@ import {
   CATALOGO_COMERCIAL_INICIAL,
   catalogoComercialEfetivo,
   catalogoComercialSchema,
+  codigoDaOpcao,
+  erroNaComposicaoDaProposta,
   precoDoCatalogo,
 } from "./proposta-catalogo";
 
@@ -79,5 +81,69 @@ describe("catálogo comercial configurável", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("cadastra todos os módulos oficiais sem liberar os que ainda não têm preço", () => {
+    expect(CATALOGO_COMERCIAL_INICIAL).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ codigo: "api_legale", ativo: false, minimo_opcoes: 1 }),
+        expect.objectContaining({ codigo: "legal_analytics", ativo: true }),
+        expect.objectContaining({ codigo: "tv_legale", ativo: false }),
+        expect.objectContaining({
+          codigo: "tv_legale_armazenamento",
+          preco_departamento_cents: 150,
+          unidade: "GB",
+        }),
+        expect.objectContaining({ codigo: "gestao_correspondente", ativo: false }),
+      ]),
+    );
+  });
+
+  it("exige usuário de BI quando o Legale Analytics entra na proposta", () => {
+    expect(
+      erroNaComposicaoDaProposta(CATALOGO_COMERCIAL_INICIAL, [
+        { codigo: "legal_analytics", quantidade: 1 },
+      ]),
+    ).toContain("Usuário BI");
+    expect(
+      erroNaComposicaoDaProposta(CATALOGO_COMERCIAL_INICIAL, [
+        { codigo: "legal_analytics", quantidade: 1 },
+        { codigo: "usuario_bi", quantidade: 1 },
+      ]),
+    ).toBeNull();
+    expect(
+      erroNaComposicaoDaProposta(CATALOGO_COMERCIAL_INICIAL, [
+        { codigo: "usuario_bi", quantidade: 1 },
+      ]),
+    ).toContain("Legale Analytics");
+  });
+
+  it("exige a quantidade mínima de contextos configurada para a API", () => {
+    const api = CATALOGO_COMERCIAL_INICIAL.find((item) => item.codigo === "api_legale")!;
+    const catalogo = [
+      {
+        ...api,
+        ativo: true,
+        opcoes_preco: [
+          {
+            codigo: "processos",
+            nome: "Processos",
+            descricao: "",
+            preco_escritorio_cents: 10000,
+            preco_departamento_cents: 12000,
+          },
+        ],
+      },
+    ];
+
+    expect(
+      erroNaComposicaoDaProposta(catalogo, [{ codigo: "api_legale", quantidade: 1 }]),
+    ).toContain("1 contexto");
+    expect(
+      erroNaComposicaoDaProposta(catalogo, [
+        { codigo: "api_legale", quantidade: 1 },
+        { codigo: codigoDaOpcao("api_legale", "processos"), quantidade: 1 },
+      ]),
+    ).toBeNull();
   });
 });

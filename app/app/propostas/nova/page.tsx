@@ -33,11 +33,14 @@ export default async function NovaPropostaPage() {
   const { data: catalog } = await supabase
     .from("proposal_catalog_items")
     .select(
-      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,ativo,ordem",
+      "id,codigo,nome,descricao,categoria,cobranca,preco_escritorio_cents,preco_departamento_cents,setup_cents,unidade,faixas_preco,opcoes_preco,minimo_opcoes,ativo,ordem",
     )
     .eq("organization_id", activeOrg.orgId)
-    .eq("ativo", true)
     .order("ordem");
+
+  const catalogoAtivo = catalogoComercialEfetivo(catalog as ItemDoCatalogo[] | null).filter(
+    (item) => item.ativo,
+  );
 
   return (
     <NovaPropostaClient
@@ -55,7 +58,7 @@ export default async function NovaPropostaPage() {
         organization?.legal_name ??
         "Nossa empresa"
       }
-      catalog={catalogoComercialEfetivo(catalog as ItemDoCatalogo[] | null)}
+      catalog={catalogoAtivo}
     />
   );
 }

@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api/client";
 import { formatCentsBRL } from "@/lib/money";
-import type { FaixaDePreco, ItemDoCatalogo } from "@/lib/schemas/proposta-catalogo";
+import type { FaixaDePreco, ItemDoCatalogo, OpcaoDePreco } from "@/lib/schemas/proposta-catalogo";
 import { CaretDown, Check, PencilSimple, Plus, Trash } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,8 @@ function novoItem(secao: Secao, ordem: number): ItemDoCatalogo {
     setup_cents: 0,
     unidade: secao === "usuarios" ? "usuário" : secao === "migracoes" ? "migração" : "unidade",
     faixas_preco: [],
+    opcoes_preco: [],
+    minimo_opcoes: 0,
     ativo: true,
     ordem,
   };
@@ -93,6 +95,22 @@ export function CatalogoPropostasClient({
     );
   };
 
+  const patchOpcao = (itemIndex: number, opcaoIndex: number, changes: Partial<OpcaoDePreco>) => {
+    setDirty(true);
+    setItems((current) =>
+      current.map((item, index) =>
+        index !== itemIndex
+          ? item
+          : {
+              ...item,
+              opcoes_preco: item.opcoes_preco.map((opcao, indexOpcao) =>
+                indexOpcao === opcaoIndex ? { ...opcao, ...changes } : opcao,
+              ),
+            },
+      ),
+    );
+  };
+
   function toggleEditor(codigo: string) {
     setExpanded((current) => {
       const next = new Set(current);
@@ -131,6 +149,36 @@ export function CatalogoPropostasClient({
     if (!item) return;
     patch(itemIndex, {
       faixas_preco: item.faixas_preco.filter((_, index) => index !== faixaIndex),
+    });
+  }
+
+  function addOpcao(itemIndex: number) {
+    const catalogItem = items[itemIndex];
+    if (!catalogItem) return;
+    const codigos = new Set(catalogItem.opcoes_preco.map((opcao) => opcao.codigo));
+    let numero = catalogItem.opcoes_preco.length + 1;
+    while (codigos.has(`contexto_${numero}`)) numero += 1;
+    patch(itemIndex, {
+      opcoes_preco: [
+        ...catalogItem.opcoes_preco,
+        {
+          codigo: `contexto_${numero}`,
+          nome: `Novo contexto ${numero}`,
+          descricao: "",
+          preco_escritorio_cents: 0,
+          preco_departamento_cents: 0,
+        },
+      ],
+    });
+  }
+
+  function removeOpcao(itemIndex: number, opcaoIndex: number) {
+    const catalogItem = items[itemIndex];
+    if (!catalogItem) return;
+    const opcoes = catalogItem.opcoes_preco.filter((_, index) => index !== opcaoIndex);
+    patch(itemIndex, {
+      opcoes_preco: opcoes,
+      minimo_opcoes: Math.min(catalogItem.minimo_opcoes, opcoes.length),
     });
   }
 
@@ -285,6 +333,12 @@ export function CatalogoPropostasClient({
                           <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">
                             {item.faixas_preco.length}{" "}
                             {item.faixas_preco.length === 1 ? "faixa" : "faixas"}
+                          </span>
+                        ) : null}
+                        {item.opcoes_preco.length > 0 ? (
+                          <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">
+                            {item.opcoes_preco.length}{" "}
+                            {item.opcoes_preco.length === 1 ? "opção" : "opções"}
                           </span>
                         ) : null}
                       </div>
@@ -548,6 +602,128 @@ export function CatalogoPropostasClient({
                             <div className="mt-4 rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
                               Preço fixo por {item.unidade}. Adicione faixas somente quando o valor
                               unitário mudar conforme a quantidade.
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+
+                      {secao === "catalogo" ? (
+                        <div className="mt-5 rounded-xl border bg-surface p-4">
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h4 className="text-sm font-semibold">
+                                Tabela por opção ou contexto
+                              </h4>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                Use quando cada contexto contratado tiver nome e preço próprios,
+                                como na API Legale.
+                              </p>
+                            </div>
+                            {canEdit ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => addOpcao(index)}
+                              >
+                                <Plus size={14} aria-hidden /> Adicionar contexto
+                              </Button>
+                            ) : null}
+                          </div>
+                          {item.opcoes_preco.length ? (
+                            <>
+                              <label className="mt-4 block max-w-52 text-xs font-medium">
+                                Mínimo de opções na proposta
+                                <Input
+                                  className="mt-1 bg-surface"
+                                  type="number"
+                                  min="0"
+                                  max={item.opcoes_preco.length}
+                                  value={item.minimo_opcoes}
+                                  disabled={!canEdit}
+                                  onChange={(event) =>
+                                    patch(index, {
+                                      minimo_opcoes: Math.max(
+                                        0,
+                                        Math.min(
+                                          item.opcoes_preco.length,
+                                          Number(event.target.value) || 0,
+                                        ),
+                                      ),
+                                    })
+                                  }
+                                />
+                              </label>
+                              <div className="mt-4 space-y-3">
+                                {item.opcoes_preco.map((opcao, opcaoIndex) => (
+                                  <div
+                                    className="grid items-end gap-3 rounded-lg bg-muted/60 p-3 md:grid-cols-[1fr_1fr_1fr_auto]"
+                                    key={`${opcao.codigo}-${opcaoIndex}`}
+                                  >
+                                    <label className="text-xs font-medium">
+                                      Nome do contexto
+                                      <Input
+                                        className="mt-1 bg-surface"
+                                        value={opcao.nome}
+                                        disabled={!canEdit}
+                                        onChange={(event) =>
+                                          patchOpcao(index, opcaoIndex, {
+                                            nome: event.target.value,
+                                          })
+                                        }
+                                      />
+                                    </label>
+                                    <label className="text-xs font-medium">
+                                      Escritório (R$)
+                                      <Input
+                                        className="mt-1 bg-surface"
+                                        inputMode="decimal"
+                                        value={fmt(opcao.preco_escritorio_cents)}
+                                        disabled={!canEdit}
+                                        onChange={(event) =>
+                                          patchOpcao(index, opcaoIndex, {
+                                            preco_escritorio_cents: reais(event.target.value),
+                                          })
+                                        }
+                                      />
+                                    </label>
+                                    <label className="text-xs font-medium">
+                                      Departamento (R$)
+                                      <Input
+                                        className="mt-1 bg-surface"
+                                        inputMode="decimal"
+                                        value={fmt(opcao.preco_departamento_cents)}
+                                        disabled={!canEdit}
+                                        onChange={(event) =>
+                                          patchOpcao(index, opcaoIndex, {
+                                            preco_departamento_cents: reais(event.target.value),
+                                          })
+                                        }
+                                      />
+                                    </label>
+                                    {canEdit ? (
+                                      <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        aria-label={`Remover contexto ${opcaoIndex + 1}`}
+                                        onClick={() => removeOpcao(index, opcaoIndex)}
+                                      >
+                                        <Trash size={15} aria-hidden />
+                                      </Button>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="mt-3 text-xs text-text-subtle">
+                                Os códigos internos são criados automaticamente e ficam estáveis
+                                para propostas já emitidas.
+                              </p>
+                            </>
+                          ) : (
+                            <div className="mt-4 rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
+                              Sem opções. O item usa apenas o valor fixo ou as faixas por
+                              quantidade.
                             </div>
                           )}
                         </div>
