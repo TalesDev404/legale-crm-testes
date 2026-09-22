@@ -27,7 +27,7 @@ import { PRIORIDADES_DA_TAREFA, SITUACOES_DA_TAREFA, type Tarefa } from "@/lib/t
 export const dynamic = "force-dynamic";
 
 const COLUNAS =
-  "id, organization_id, title, description, due_date, priority, status, lead_id, contact_id, assigned_to, created_by, created_at, updated_at";
+  "id, organization_id, title, description, due_date, priority, status, lead_id, proposal_id, contact_id, assigned_to, created_by, created_at, updated_at";
 
 const edicaoSchema = z
   .object({
@@ -37,6 +37,7 @@ const edicaoSchema = z
     priority: z.enum(PRIORIDADES_DA_TAREFA).optional(),
     status: z.enum(SITUACOES_DA_TAREFA).optional(),
     lead_id: z.string().uuid().nullable().optional(),
+    proposal_id: z.string().uuid().nullable().optional(),
     contact_id: z.string().uuid().nullable().optional(),
     assigned_to: z.string().uuid().nullable().optional(),
   })
@@ -74,14 +75,34 @@ export async function PATCH(req: NextRequest, ctx: Contexto): Promise<Response> 
   // timeline do negócio — e a segunda seria mentira.
   const { data: antes } = await supabase
     .from("crm_tasks")
-    .select("status")
+    .select("status, lead_id, proposal_id")
     .eq("id", id)
     .eq("organization_id", authz.org.orgId)
     .maybeSingle();
+  if (!antes) return fail("not_found", t("Tarefa não encontrada."), 404, { requestId });
+
+  const proposalId =
+    parsed.data.proposal_id === undefined ? antes.proposal_id : parsed.data.proposal_id;
+  let leadId = parsed.data.lead_id === undefined ? antes.lead_id : parsed.data.lead_id;
+  if (proposalId) {
+    const { data: proposal } = await supabase
+      .from("commercial_proposals")
+      .select("id, lead_id")
+      .eq("organization_id", authz.org.orgId)
+      .eq("id", proposalId)
+      .maybeSingle();
+    if (!proposal)
+      return fail("validation_failed", "A proposta vinculada não existe.", 422, { requestId });
+    if (leadId && proposal.lead_id && leadId !== proposal.lead_id)
+      return fail("validation_failed", "A proposta pertence a outro negócio.", 422, {
+        requestId,
+      });
+    leadId ??= proposal.lead_id;
+  }
 
   const { data, error } = await supabase
     .from("crm_tasks")
-    .update(parsed.data)
+    .update({ ...parsed.data, lead_id: leadId })
     .eq("id", id)
     .eq("organization_id", authz.org.orgId)
     .select(COLUNAS)
@@ -92,7 +113,7 @@ export async function PATCH(req: NextRequest, ctx: Contexto): Promise<Response> 
       return fail("not_found", t("Tarefa não encontrada."), 404, { requestId });
     }
     if (error.code === "23503") {
-      return fail("validation_failed", t("O negócio ou contato vinculado não existe."), 422, {
+      return fail("validation_failed", t("O vínculo da tarefa não existe neste CRM."), 422, {
         requestId,
       });
     }

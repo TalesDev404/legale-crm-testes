@@ -22,6 +22,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 import { PrintButton } from "./PrintButton";
+import { VinculoDaProposta } from "./VinculoDaProposta";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Proposta comercial" };
@@ -178,7 +179,7 @@ export default async function PropostaPage({ params }: { params: Promise<{ id: s
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) redirect("/app");
   const supabase = await createClient();
-  const [{ data }, { data: catalogRows }] = await Promise.all([
+  const [{ data }, { data: catalogRows }, { data: leads }] = await Promise.all([
     supabase
       .from("commercial_proposals")
       .select(COLUNAS_DA_PROPOSTA)
@@ -190,10 +191,26 @@ export default async function PropostaPage({ params }: { params: Promise<{ id: s
       .select("*")
       .eq("organization_id", activeOrg.orgId)
       .order("ordem"),
+    supabase
+      .from("crm_leads")
+      .select("id, title")
+      .eq("organization_id", activeOrg.orgId)
+      .order("updated_at", { ascending: false })
+      .limit(300),
   ]);
   if (!data) notFound();
 
   const proposal = data as unknown as PropostaComercial;
+  const leadOptions = [...(leads ?? [])];
+  if (proposal.lead_id && !leadOptions.some((lead) => lead.id === proposal.lead_id)) {
+    const { data: selectedLead } = await supabase
+      .from("crm_leads")
+      .select("id, title")
+      .eq("organization_id", activeOrg.orgId)
+      .eq("id", proposal.lead_id)
+      .maybeSingle();
+    if (selectedLead) leadOptions.unshift(selectedLead);
+  }
   const catalogo = catalogoComercialEfetivo(catalogRows as ItemDoCatalogo[] | null);
   const monthlyItems = proposal.items.filter((item) => item.cobranca === "mensal");
   const oneTimeItems = proposal.items.filter((item) => item.cobranca === "unica");
@@ -240,10 +257,17 @@ export default async function PropostaPage({ params }: { params: Promise<{ id: s
 
   return (
     <main className="proposal-shell bg-[#f7f6f9] px-4 py-6 sm:px-6">
-      <div className="proposal-actions mx-auto mb-5 flex max-w-[794px] items-center justify-between gap-3">
-        <Button asChild variant="outline">
-          <Link href="/app/propostas">Voltar</Link>
-        </Button>
+      <div className="proposal-actions mx-auto mb-5 flex max-w-[794px] flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/app/propostas">Voltar</Link>
+          </Button>
+          <VinculoDaProposta
+            proposalId={proposal.id}
+            leadId={proposal.lead_id}
+            leads={leadOptions as Array<{ id: string; title: string }>}
+          />
+        </div>
         <PrintButton />
       </div>
 

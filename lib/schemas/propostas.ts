@@ -83,6 +83,7 @@ export const itemDaPropostaSchema = z.object({
 export const propostaCreateSchema = z
   .object({
     contact_id: z.string().uuid().nullable().optional(),
+    lead_id: z.string().uuid().nullable().optional(),
     client_name: z.string().trim().min(2, "Informe o nome do cliente.").max(200),
     client_kind: z.enum(TIPOS_DE_CLIENTE),
     recipient_name: z.string().trim().max(160).optional(),
@@ -131,6 +132,7 @@ export interface PropostaComercial {
   id: string;
   organization_id: string;
   contact_id: string | null;
+  lead_id: string | null;
   created_by: string | null;
   client_name: string;
   client_kind: (typeof TIPOS_DE_CLIENTE)[number];
@@ -151,4 +153,4 @@ export interface PropostaComercial {
 }
 
 export const COLUNAS_DA_PROPOSTA =
-  "id, organization_id, contact_id, created_by, client_name, client_kind, recipient_name, recipient_email, status, issue_date, valid_until, version, currency, monthly_total_cents, activation_total_cents, items, notes, payment_terms, created_at, updated_at";
+  "id, organization_id, contact_id, lead_id, created_by, client_name, client_kind, recipient_name, recipient_email, status, issue_date, valid_until, version, currency, monthly_total_cents, activation_total_cents, items, notes, payment_terms, created_at, updated_at";

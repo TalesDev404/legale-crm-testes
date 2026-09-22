@@ -34,6 +34,7 @@ function tarefa(p: Partial<Tarefa>): Tarefa {
     priority: "medium",
     status: "pending",
     lead_id: null,
+    proposal_id: null,
     contact_id: null,
     assigned_to: null,
     created_by: null,
@@ -63,7 +64,9 @@ describe("prazo da tarefa", () => {
     // deixaria de ser lida — que é como um alerta morre.
     for (const status of ["done", "cancelled"] as const) {
       expect(estaAtrasada(tarefa({ due_date: local(2026, 9, 1), status }), AGORA)).toBe(false);
-      expect(faixaDePrazo(tarefa({ due_date: local(2026, 9, 1), status }), AGORA)).toBe("encerrada");
+      expect(faixaDePrazo(tarefa({ due_date: local(2026, 9, 1), status }), AGORA)).toBe(
+        "encerrada",
+      );
     }
   });
 

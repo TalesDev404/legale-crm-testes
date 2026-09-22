@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +15,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { ArrowsClockwise, CalendarBlank, ListChecks, Plus } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { useTasks } from "@/hooks/tasks/useTasks";
-import type { NovaTarefa, SituacaoDaTarefa, Tarefa } from "@/lib/tarefas/tipos";
+import type { NovaTarefa, PropostaDaTarefa, SituacaoDaTarefa, Tarefa } from "@/lib/tarefas/tipos";
 
 import { CalendarioDeTarefas } from "./CalendarioDeTarefas";
 import { FormularioDeTarefa } from "./FormularioDeTarefa";
@@ -23,12 +24,20 @@ import { ListaDeTarefas } from "./ListaDeTarefas";
 /** "aberto" não é uma situação do banco: é o filtro que a tela abre por padrão. */
 type FiltroDeSituacao = "aberto" | SituacaoDaTarefa;
 
-export function TarefasClient({ podeEditar }: { podeEditar: boolean }) {
+export function TarefasClient({
+  podeEditar,
+  propostas,
+  propostaInicialId,
+}: {
+  podeEditar: boolean;
+  propostas: PropostaDaTarefa[];
+  propostaInicialId?: string;
+}) {
   const t = useT();
   const [modo, setModo] = useState<"lista" | "calendario">("lista");
   const [situacao, setSituacao] = useState<FiltroDeSituacao>("aberto");
   const [emEdicao, setEmEdicao] = useState<Tarefa | null>(null);
-  const [formAberto, setFormAberto] = useState(false);
+  const [formAberto, setFormAberto] = useState(Boolean(propostaInicialId && podeEditar));
   const [prazoSugerido, setPrazoSugerido] = useState<string | undefined>();
   // A CHAVE DE REMONTAGEM do formulário. Ele lê o estado inicial das props
   // (nada de `useEffect` sincronizando), então abrir duas vezes seguidas o
@@ -46,7 +55,9 @@ export function TarefasClient({ podeEditar }: { podeEditar: boolean }) {
     apagarTarefa,
     alternarConcluida,
   } = useTasks(
-    situacao === "aberto" ? { aberto: true } : { status: situacao },
+    situacao === "aberto"
+      ? { aberto: true, proposal_id: propostaInicialId }
+      : { status: situacao, proposal_id: propostaInicialId },
   );
 
   function abrirNova(dia?: string) {
@@ -73,6 +84,20 @@ export function TarefasClient({ podeEditar }: { podeEditar: boolean }) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("Tarefas")}</h1>
+          {propostaInicialId ? (
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm">
+              <Link
+                href={`/app/propostas/${propostaInicialId}`}
+                className="text-primary hover:underline"
+              >
+                {t("Proposta")}:{" "}
+                {propostas.find((item) => item.id === propostaInicialId)?.client_name}
+              </Link>
+              <Link href="/app/tasks" className="text-muted-foreground hover:underline">
+                {t("Ver todas as tarefas")}
+              </Link>
+            </div>
+          ) : null}
           <p className="mt-1 text-sm text-muted-foreground">
             {t(
               "O que ficou combinado, com prazo. Tarefa presa a um negócio aparece na linha do tempo dele.",
@@ -81,10 +106,7 @@ export function TarefasClient({ podeEditar }: { podeEditar: boolean }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={situacao}
-            onValueChange={(v) => setSituacao(v as FiltroDeSituacao)}
-          >
+          <Select value={situacao} onValueChange={(v) => setSituacao(v as FiltroDeSituacao)}>
             <SelectTrigger className="h-9 w-[168px] text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -173,6 +195,7 @@ export function TarefasClient({ podeEditar }: { podeEditar: boolean }) {
       ) : (
         <ListaDeTarefas
           tarefas={tarefas}
+          propostas={propostas}
           podeEditar={podeEditar}
           aoAlternarConcluida={alternarConcluida}
           aoEditar={abrirEdicao}
@@ -185,6 +208,8 @@ export function TarefasClient({ podeEditar }: { podeEditar: boolean }) {
         aberto={formAberto}
         aoMudarAbertura={setFormAberto}
         tarefa={emEdicao}
+        propostas={propostas}
+        propostaInicialId={propostaInicialId}
         prazoSugerido={prazoSugerido}
         aoSalvar={salvar}
       />

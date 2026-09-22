@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 
 import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
 import { ROLE_RANK } from "@/lib/auth/types";
+import { createClient } from "@/lib/supabase/server";
+import type { PropostaDaTarefa } from "@/lib/tarefas/tipos";
 
 import { TarefasClient } from "./_components/TarefasClient";
 
@@ -26,12 +28,46 @@ export const metadata: Metadata = { title: "Tarefas" };
  * Criar e editar é `agent` — e a rota cobra de novo (`requireRole("agent")`).
  * A tela esconder o botão é cortesia, não autorização.
  */
-export default async function TarefasPage() {
+export default async function TarefasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ proposal?: string }>;
+}) {
   const user = await requireAuth();
   const activeOrg = await resolveActiveOrg(user);
   if (!activeOrg) redirect("/app");
 
-  const podeEditar = (user.is_platform_admin && !user.support) || ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent;
+  const podeEditar =
+    (user.is_platform_admin && !user.support) || ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent;
 
-  return <TarefasClient podeEditar={podeEditar} />;
+  const supabase = await createClient();
+  const [{ data: proposals }, { proposal: proposalParam }] = await Promise.all([
+    supabase
+      .from("commercial_proposals")
+      .select("id, client_name, lead_id")
+      .eq("organization_id", activeOrg.orgId)
+      .order("updated_at", { ascending: false })
+      .limit(300),
+    searchParams,
+  ]);
+  const propostas = (proposals ?? []) as PropostaDaTarefa[];
+  if (proposalParam && !propostas.some((item) => item.id === proposalParam)) {
+    const { data: selectedProposal } = await supabase
+      .from("commercial_proposals")
+      .select("id, client_name, lead_id")
+      .eq("organization_id", activeOrg.orgId)
+      .eq("id", proposalParam)
+      .maybeSingle();
+    if (selectedProposal) propostas.unshift(selectedProposal as PropostaDaTarefa);
+  }
+
+  return (
+    <TarefasClient
+      podeEditar={podeEditar}
+      propostas={propostas}
+      propostaInicialId={
+        propostas.some((item) => item.id === proposalParam) ? proposalParam : undefined
+      }
+    />
+  );
 }
