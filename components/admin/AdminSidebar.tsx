@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import {
   Gauge,
   ChatsCircle,
-  Buildings,
   ClipboardText,
   Scales,
   Warning,
@@ -13,7 +12,6 @@ import {
   ShieldCheck,
   CalendarBlank,
   Palette,
-  Key,
   WebhooksLogo,
   ArrowRight,
 } from "@/lib/ui/icons";
@@ -33,7 +31,6 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: Gauge },
   { href: "/admin/inbox", label: "Inbox", icon: ChatsCircle },
-  { href: "/admin/tenants", label: "Tenants", icon: Buildings },
   { href: "/admin/audit", label: "Audit", icon: ClipboardText },
   { href: "/admin/lgpd", label: "LGPD", icon: Scales },
   { href: "/admin/incidents", label: "Incidents", icon: Warning },
@@ -52,10 +49,6 @@ const NAV_ITEMS: NavItem[] = [
   // webhook) — mesma razão da de cima: é da INSTALAÇÃO. O rótulo é o da aba de
   // Conexões, para quem vem de lá reconhecer o mesmo nome.
   { href: "/admin/meta", label: "API Oficial (Meta)", icon: WebhooksLogo },
-  // A porta da tela que decide quem pode criar conta nesta instalação — mesma
-  // razão das duas de cima: é configuração da INSTALAÇÃO, e /admin tem
-  // navegação própria (o registro de `lib/navigation/` cobre só `app/app/**`).
-  { href: "/admin/cadastro", label: "Cadastro", icon: Key },
 ];
 
 interface AdminSidebarProps {
@@ -89,16 +82,15 @@ export function AdminSidebar({ userEmail, variant = "desktop" }: AdminSidebarPro
           <SimboloDoProduto nome={marca.name} decorativo className="h-8 w-8" />
         )}
         <div className="flex flex-col">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
+          <span className="text-xs tracking-wider text-muted-foreground uppercase">
             {marca.name}
           </span>
-          <span className="text-sm font-semibold tracking-tight">{t("Admin Plataforma")}</span>
+          <span className="text-sm font-semibold tracking-tight">Administração Legale</span>
         </div>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label={t("Navegação plataforma")}>
         {NAV_ITEMS.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
           return (
             <Link

@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { LoginForm } from "@/components/auth/LoginForm";
-import { branding } from "@/lib/branding";
 import { createClient } from "@/lib/supabase/server";
 import { idiomaDoVisitante } from "@/lib/i18n/idiomaAnonimo";
 import { traduzir } from "@/lib/i18n/dicionario";
@@ -30,8 +29,11 @@ export default async function LoginPage({
   return (
     <div className="space-y-6">
       <div className="space-y-1.5 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("Entrar")}</h1>
-        <p className="text-sm text-muted-foreground">{branding().name}</p>
+        <p className="text-xs font-semibold tracking-[0.18em] text-accent uppercase">
+          Comercial Legale
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight">Bem-vindo ao CRM</h1>
+        <p className="text-sm text-muted-foreground">Entre com seu acesso corporativo Legale.</p>
       </div>
       {reset === "success" && (
         <div
@@ -109,13 +111,7 @@ export default async function LoginPage({
           </Link>
         </p>
         <p className="text-muted-foreground">
-          {t("Não tem conta?")}{" "}
-          <Link
-            href="/signup"
-            className="font-medium text-foreground underline underline-offset-4"
-          >
-            {t("Criar conta")}
-          </Link>
+          Precisa de acesso? Solicite um convite ao administrador do CRM.
         </p>
       </div>
     </div>

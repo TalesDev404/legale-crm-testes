@@ -64,6 +64,7 @@ export function LoginForm({ next }: { next?: string }) {
         <Input
           id="email"
           type="email"
+          placeholder="seu e-mail corporativo"
           autoComplete="email"
           autoFocus
           aria-invalid={errors.email ? true : undefined}
@@ -95,7 +96,7 @@ export function LoginForm({ next }: { next?: string }) {
         </div>
       )}
       <Button type="submit" className="w-full" disabled={isPending}>
-        {isPending ? t("Entrando...") : t("Entrar")}
+        {isPending ? t("Entrando...") : "Acessar CRM"}
       </Button>
     </form>
   );

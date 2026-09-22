@@ -161,7 +161,7 @@ describe("porta 2 — /auth/confirm não transforma revogado em dono de tenant",
 // PORTA 3 — `recoverOrganization`: a saída de emergência, que provisiona.
 // ───────────────────────────────────────────────────────────────────────────
 
-describe("porta 3 — recoverOrganization recusa quem teve o acesso revogado", () => {
+describe("porta 3 — recoverOrganization nunca cria outra organização", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.resetModules();
@@ -196,7 +196,7 @@ describe("porta 3 — recoverOrganization recusa quem teve o acesso revogado", (
     expect(
       r,
       "quem teve o vínculo retirado por um administrador conseguiu abrir a própria empresa pela tela de recuperação",
-    ).toEqual({ ok: false, error: "access_revoked" });
+    ).toEqual({ ok: false, error: "somente_convite" });
     expect(ensureTenantForUser).not.toHaveBeenCalled();
   });
 
@@ -215,16 +215,15 @@ describe("porta 3 — recoverOrganization recusa quem teve o acesso revogado", (
     expect(ensureTenantForUser).not.toHaveBeenCalled();
   });
 
-  it("instalação aberta e acesso íntegro: provisiona — vacuidade da porta 3", async () => {
-    // Sem este caso, as duas recusas acima ficariam verdes num código que
-    // recusasse TUDO, e a tela de recuperação estaria quebrada sem ninguém ver.
+  it("mesmo uma política legada aberta não reabre a criação de organizações", async () => {
     const { ensureTenantForUser } = await import("@/lib/auth/provision");
     vi.mocked(ensureTenantForUser).mockResolvedValue({ organizationId: ORG } as never);
 
     const { recoverOrganization } = await import("@/app/actions/auth/recoverOrganization");
-    await expect(recoverOrganization("Empresa Legítima")).rejects.toThrow(
-      "REDIRECT:/onboarding/welcome",
-    );
-    expect(ensureTenantForUser).toHaveBeenCalled();
+    await expect(recoverOrganization("Empresa Legítima")).resolves.toEqual({
+      ok: false,
+      error: "somente_convite",
+    });
+    expect(ensureTenantForUser).not.toHaveBeenCalled();
   });
 });

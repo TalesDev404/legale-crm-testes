@@ -2,9 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/server";
-import { ensureTenantForUser } from "@/lib/auth/provision";
 import { decidirConviteDoSignup } from "@/lib/auth/convite-no-signup";
-import { modoDeCadastro } from "@/lib/auth/politica-de-cadastro";
 import { aplicarConvite } from "@/lib/auth/aplicar-convite";
 import { audit } from "@/lib/audit";
 import { env } from "@/lib/env";
@@ -69,7 +67,8 @@ export async function GET(request: NextRequest) {
   // NUNCA usar url.origin aqui: é derivado do header Host, que o proxy/container
   // pode entregar como o bind interno (ex.: 0.0.0.0:3000) em vez do domínio
   // público — o link de recovery quebra silenciosamente para o usuário final.
-  const redirectTo = (path: string) => NextResponse.redirect(new URL(path, env.NEXT_PUBLIC_APP_URL));
+  const redirectTo = (path: string) =>
+    NextResponse.redirect(new URL(path, env.NEXT_PUBLIC_APP_URL));
 
   if (!(tokenHash && type) && !code) {
     return redirectTo("/login?error=link_invalido");
@@ -111,7 +110,11 @@ export async function GET(request: NextRequest) {
       // `formato` é o campo que faltava: sem ele os dois modos de falha
       // chegavam ao audit log indistinguíveis, e a triagem de "o link não
       // funciona" começava do zero toda vez.
-      metadata: { type, formato: viaTokenHash ? "token_hash" : "code", reason: error?.message ?? "no_user" },
+      metadata: {
+        type,
+        formato: viaTokenHash ? "token_hash" : "code",
+        reason: error?.message ?? "no_user",
+      },
       requestId,
     });
     // Dois códigos porque são duas causas e dois consertos. `link_invalido`
@@ -186,44 +189,14 @@ export async function GET(request: NextRequest) {
     return redirectTo(`/team/accept-invite/${decisao.token}`);
   }
 
-  // A TRAVA QUE MAIS IMPORTA. Aqui é onde a organização nasce, e este ponto
-  // pega inclusive a conta que nasceu FORA da tela de cadastro — por uma chamada
-  // direta à server action, ou por uma conta criada pela admin API do GoTrue.
-  // Sem ele, fechar o cadastro seria decoração: bastaria pular a tela.
-  //
-  // Depois de `decidirConviteDoSignup`, de propósito: quem tem convite válido já
-  // saiu acima, então esta guarda só alcança quem chegou sem convite nenhum.
-  if ((await modoDeCadastro()) === "so_convite") {
-    await audit({
-      action: "auth.signup_provision_recusado",
-      actorUserId: usuario.id,
-      metadata: { motivo: "somente_convite" },
-      requestId,
-    });
-    return redirectTo("/login?error=cadastro_por_convite");
-  }
-
-  try {
-    await ensureTenantForUser(usuario);
-  } catch (e) {
-    await audit({
-      action: "auth.signup_provision_failed",
-      actorUserId: usuario.id,
-      metadata: { reason: e instanceof Error ? e.message : String(e) },
-      requestId,
-    });
-    // A sessão JÁ está firmada (o `verifyOtp`/`exchangeCodeForSession` acima
-    // passou). Mandar para `/login` deixava a pessoa logada e sem organização,
-    // sem nenhum caminho de volta — ver `app/actions/auth/recoverOrganization.ts`.
-    return redirectTo("/get-started");
-  }
-
-  void audit({
-    action: "auth.signup_confirmed",
+  // O CRM Comercial Legale é uma única organização. Quem chega sem convite
+  // nunca provisiona outra empresa, mesmo que a conta tenha sido criada fora
+  // da interface ou por uma versão anterior do sistema.
+  await audit({
+    action: "auth.signup_provision_recusado",
     actorUserId: usuario.id,
-    metadata: {},
+    metadata: { motivo: "somente_convite" },
     requestId,
   });
-
-  return redirectTo("/onboarding/welcome");
+  return redirectTo("/login?error=cadastro_por_convite");
 }

@@ -1,48 +1,19 @@
-import { LogotipoDoProduto } from "@/components/branding/MarcaDoProduto";
-import { marcaEhADoProduto } from "@/lib/branding";
-import { marcaDaSaida } from "@/lib/branding/saida";
-import { createClient } from "@/lib/supabase/server";
-import { IdiomaProvider } from "@/lib/i18n/IdiomaProvider";
+import type { Metadata } from "next";
 
-/**
- * A casca das telas de acesso — login, cadastro, recuperação, MFA.
- *
- * ── Por que o LOGO mora aqui, e não em `login/page.tsx` ───────────────────────
- *
- * São seis telas no grupo `(public)`, e todas são "antes de entrar": quem instala
- * o produto para clientes mostra a marca dele exatamente aí. Um `<img>` por
- * página seriam seis cópias que divergem na primeira vez que alguém mexer numa
- * só — e a que ficaria para trás é sempre a que ninguém abre (recuperação de
- * senha, cadastro de MFA), que é justamente onde o cliente do revendedor
- * aparece sozinho e sem contexto.
- *
- * ── Por que `marcaDaSaida(null)` ──────────────────────────────────────────────
- *
- * Aqui não existe organização resolvida: `null` é a declaração disso, e a pilha
- * resultante é a mesma do layout raiz (banco acima, `.env` embaixo). Montar a
- * pilha à mão nesta tela faria a fachada anunciar uma precedência que o resto do
- * produto não usa. E `marcaDaSaida` NUNCA lança (ver o cabeçalho dela): uma cor
- * ou um logo mal gravados não podem derrubar a única tela por onde se entra para
- * corrigi-los.
- *
- * Sem logo configurado E com o nome padrão, a fachada mostra o logotipo do
- * PRODUTO (`components/branding/MarcaDoProduto.tsx`) — inline, sem `<img>`,
- * para que `tests/e2e/marca-logo.spec.ts` continue medindo "a fachada está sem
- * `<img>`" como "sem logo do revendedor".
- *
- * O NOME continua saindo de `branding()` dentro de cada página — não é descuido,
- * está medido em `tests/e2e/icone-da-marca.spec.ts:64-77`: aquela spec cruza duas
- * resoluções independentes (o título da aba, que lê o banco, contra o texto sob
- * o "Entrar", que lê o `.env`). Trocar o texto para este mesmo resolvedor
- * deixaria a spec verde medindo nada.
- */
+import { MarcaLegale } from "@/components/branding/MarcaLegale";
+import { IdiomaProvider } from "@/lib/i18n/IdiomaProvider";
+import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: {
+    default: "CRM Comercial Legale",
+    template: "%s · CRM Comercial Legale",
+  },
+  description: "Ambiente interno da equipe Comercial Legale.",
+};
+
+/** Casca única das telas de acesso do CRM interno da Legale. */
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const marca = await marcaDaSaida(null);
-  // A maioria destas telas roda ANTES do login (não há usuário nenhum), mas
-  // duas — `/login/mfa` e, em parte, `/login/recovery` — rodam com uma sessão
-  // parcial já criada (primeiro fator verificado, segundo pendente). Onde há
-  // sessão, o idioma salvo no perfil vale; sem ela, `IdiomaProvider` já cai no
-  // padrão pt-BR sozinho (ver o cabeçalho do provider) — nunca lança.
   const supabase = await createClient();
   const {
     data: { user },
@@ -51,49 +22,53 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <IdiomaProvider locale={locale}>
-      <div className="flex min-h-screen items-center justify-center bg-background p-6">
-        <div className="w-full max-w-sm space-y-6">
-          {marca.logoUrl ? (
-            <div className="flex justify-center">
-              {/*
-                <img> em vez de next/image pelo mesmo motivo da barra lateral: a URL
-                é de quem hospeda e o `next/image` exige allowlist de domínios
-                fechada em BUILD — a imagem pré-buildada do self-host recusaria o
-                domínio do operador. Altura fixa e largura livre para não distorcer
-                arte de proporção desconhecida.
+      <main className="grid min-h-screen bg-[#f7f5fb] lg:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.1fr)]">
+        <section className="relative hidden overflow-hidden bg-[#24113f] p-12 text-white lg:flex lg:flex-col lg:justify-between">
+          <div className="absolute -top-32 -right-24 h-80 w-80 rounded-full bg-[#7c3aed]/30 blur-3xl" />
+          <div className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-[#30d2b2]/18 blur-3xl" />
+          <MarcaLegale className="relative rounded-2xl bg-white px-4 py-2 shadow-lg" />
 
-                O `alt` é o nome DESTA resolução (`marca.nome`), e não o de
-                `branding()`: é a legenda da imagem que está ali, e nomeá-la com a
-                marca de outra fonte descreveria uma marca que não é a do logo.
+          <div className="relative max-w-lg pb-8">
+            <p className="text-xs font-semibold tracking-[0.24em] text-[#cbb7ff] uppercase">
+              Ambiente interno
+            </p>
+            <h1 className="mt-4 text-4xl leading-tight font-semibold tracking-tight">
+              CRM Comercial Legale
+            </h1>
+            <p className="mt-4 text-base leading-relaxed text-white/70">
+              Relacionamento, oportunidades e propostas comerciais em uma visão simples para o time
+              Legale.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-2 text-xs font-medium text-white/80">
+              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">
+                Propostas comerciais
+              </span>
+              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">
+                Relacionamento
+              </span>
+              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">
+                Visão do funil
+              </span>
+            </div>
+          </div>
 
-                O `data-testid` é lido por `tests/e2e/marca-logo.spec.ts`, que prova
-                que o logo da EMPRESA não vaza para cá. Sem ele a spec caía na
-                "primeira <img> da página", e uma asserção de negação com seletor
-                largo passa sozinha assim que outra imagem entra na tela.
-              */}
-              {/* O chip `dark:bg-white` é o mesmo da barra lateral
-                (`components/shell/Sidebar.tsx`): esta tela também respeita
-                `data-theme` (o `ThemeProvider` embrulha a raiz inteira, login
-                incluso), então um logo escuro contra `--color-surface` escuro tem
-                o mesmo problema de contraste aqui. */}
-              <div className="rounded-md dark:bg-white dark:px-3 dark:py-2 dark:shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  data-testid="logo-da-fachada"
-                  src={marca.logoUrl}
-                  alt={marca.nome}
-                  className="h-10 w-auto max-w-[12rem] object-contain"
-                />
-              </div>
+          <p className="relative text-xs text-white/50">Uso exclusivo da equipe Legale</p>
+        </section>
+
+        <section className="flex min-h-screen items-center justify-center p-5 sm:p-8 lg:p-12">
+          <div className="w-full max-w-md">
+            <div className="mb-8 flex justify-center lg:hidden">
+              <MarcaLegale />
             </div>
-          ) : marcaEhADoProduto({ name: marca.nome, logoUrl: null }) ? (
-            <div className="flex justify-center">
-              <LogotipoDoProduto nome={marca.nome} className="h-12 w-auto" />
+            <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-[0_24px_70px_rgba(44,25,73,0.10)] sm:p-8 dark:bg-surface">
+              {children}
             </div>
-          ) : null}
-          {children}
-        </div>
-      </div>
+            <p className="mt-5 text-center text-xs text-muted-foreground">
+              Ambiente interno do Comercial Legale
+            </p>
+          </div>
+        </section>
+      </main>
     </IdiomaProvider>
   );
 }
