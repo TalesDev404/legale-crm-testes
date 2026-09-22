@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/hooks/i18n/useT";
 import type {
   NovaTarefa,
+  PropostaDaTarefa,
   PrioridadeDaTarefa,
   SituacaoDaTarefa,
   Tarefa,
@@ -38,6 +39,8 @@ interface Props {
   aoSalvar: (entrada: NovaTarefa) => Promise<unknown>;
   leadId?: string | null;
   contactId?: string | null;
+  propostas?: PropostaDaTarefa[];
+  propostaInicialId?: string;
 }
 
 /**
@@ -65,6 +68,8 @@ export function FormularioDeTarefa({
   aoSalvar,
   leadId,
   contactId,
+  propostas = [],
+  propostaInicialId,
 }: Props) {
   const t = useT();
   const editando = Boolean(tarefa);
@@ -82,6 +87,7 @@ export function FormularioDeTarefa({
   const [hora, setHora] = useState(tarefa?.due_date ? prazo.hora : "09:00");
   const [prioridade, setPrioridade] = useState<PrioridadeDaTarefa>(tarefa?.priority ?? "medium");
   const [situacao, setSituacao] = useState<SituacaoDaTarefa>(tarefa?.status ?? "pending");
+  const [propostaId, setPropostaId] = useState(tarefa?.proposal_id ?? propostaInicialId ?? "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -95,6 +101,7 @@ export function FormularioDeTarefa({
     // Sem dia não há hora que valha, e uma hora solta viraria "hoje às 9h" sem
     // ninguém ter pedido.
     const prazo = dia ? new Date(`${dia}T${hora || "00:00"}:00`).toISOString() : null;
+    const propostaSelecionada = propostas.find((item) => item.id === propostaId);
 
     setSalvando(true);
     setErro(null);
@@ -105,7 +112,8 @@ export function FormularioDeTarefa({
         due_date: prazo,
         priority: prioridade,
         status: situacao,
-        lead_id: tarefa?.lead_id ?? leadId ?? null,
+        lead_id: propostaSelecionada?.lead_id ?? tarefa?.lead_id ?? leadId ?? null,
+        proposal_id: propostaId || null,
         contact_id: tarefa?.contact_id ?? contactId ?? null,
       });
       aoMudarAbertura(false);
@@ -146,6 +154,26 @@ export function FormularioDeTarefa({
               onChange={(e) => setDescricao(e.target.value)}
               placeholder={t("O que você vai querer lembrar quando chegar a hora")}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="tarefa-proposta">{t("Proposta vinculada")}</Label>
+            <select
+              id="tarefa-proposta"
+              value={propostaId}
+              onChange={(event) => setPropostaId(event.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">{t("Sem proposta")}</option>
+              {propostas.map((proposta) => (
+                <option key={proposta.id} value={proposta.id}>
+                  {proposta.client_name}
+                </option>
+              ))}
+              {propostaId && !propostas.some((proposta) => proposta.id === propostaId) ? (
+                <option value={propostaId}>{t("Proposta vinculada")}</option>
+              ) : null}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -206,7 +234,10 @@ export function FormularioDeTarefa({
           </div>
 
           {erro ? (
-            <p role="alert" className="rounded-md bg-destructive/10 p-2 text-xs font-medium text-destructive">
+            <p
+              role="alert"
+              className="rounded-md bg-destructive/10 p-2 text-xs font-medium text-destructive"
+            >
               {erro}
             </p>
           ) : null}

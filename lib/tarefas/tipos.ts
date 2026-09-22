@@ -38,6 +38,7 @@ export interface Tarefa {
   priority: PrioridadeDaTarefa;
   status: SituacaoDaTarefa;
   lead_id: string | null;
+  proposal_id: string | null;
   contact_id: string | null;
   assigned_to: string | null;
   created_by: string | null;
@@ -52,8 +53,15 @@ export interface NovaTarefa {
   priority?: PrioridadeDaTarefa;
   status?: SituacaoDaTarefa;
   lead_id?: string | null;
+  proposal_id?: string | null;
   contact_id?: string | null;
   assigned_to?: string | null;
+}
+
+export interface PropostaDaTarefa {
+  id: string;
+  client_name: string;
+  lead_id: string | null;
 }
 
 export type EdicaoDaTarefa = Partial<NovaTarefa>;

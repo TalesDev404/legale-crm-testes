@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
@@ -12,12 +13,14 @@ import {
   type FaixaDePrazo,
   type PrioridadeDaTarefa,
   type Tarefa,
+  type PropostaDaTarefa,
 } from "@/lib/tarefas/tipos";
 import { Check, PencilSimple, Trash } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 
 interface Props {
   tarefas: Tarefa[];
+  propostas: PropostaDaTarefa[];
   podeEditar: boolean;
   aoAlternarConcluida: (tarefa: Tarefa) => Promise<unknown>;
   aoEditar: (tarefa: Tarefa) => void;
@@ -34,12 +37,14 @@ const COR_DA_PRIORIDADE: Record<PrioridadeDaTarefa, string> = {
 
 function Linha({
   tarefa,
+  propostas,
   podeEditar,
   aoAlternarConcluida,
   aoEditar,
   aoApagar,
 }: {
   tarefa: Tarefa;
+  propostas: PropostaDaTarefa[];
   podeEditar: boolean;
   aoAlternarConcluida: (t: Tarefa) => Promise<unknown>;
   aoEditar: (t: Tarefa) => void;
@@ -94,16 +99,29 @@ function Linha({
       </button>
 
       <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            "text-sm font-medium",
-            encerrada && "text-muted-foreground line-through",
-          )}
-        >
+        <p className={cn("text-sm font-medium", encerrada && "text-muted-foreground line-through")}>
           {tarefa.title}
         </p>
         {tarefa.description ? (
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{tarefa.description}</p>
+        ) : null}
+        {tarefa.proposal_id ? (
+          <Link
+            href={`/app/propostas/${tarefa.proposal_id}`}
+            className="mt-1 block w-fit text-xs font-medium text-primary hover:underline"
+          >
+            {t("Proposta")}:{" "}
+            {propostas.find((item) => item.id === tarefa.proposal_id)?.client_name ??
+              t("Abrir proposta")}
+          </Link>
+        ) : null}
+        {tarefa.lead_id ? (
+          <Link
+            href={`/app/leads/${tarefa.lead_id}`}
+            className="mt-1 block w-fit text-xs text-muted-foreground hover:text-primary hover:underline"
+          >
+            {t("Ver card do funil")}
+          </Link>
         ) : null}
 
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
@@ -115,7 +133,9 @@ function Linha({
           >
             {rotuloDaPrioridade[tarefa.priority]}
           </span>
-          <span className={cn("text-muted-foreground", atrasada && "font-semibold text-destructive")}>
+          <span
+            className={cn("text-muted-foreground", atrasada && "font-semibold text-destructive")}
+          >
             {tarefa.due_date
               ? new Date(tarefa.due_date).toLocaleString(tag, {
                   day: "2-digit",
@@ -129,7 +149,7 @@ function Linha({
       </div>
 
       {podeEditar ? (
-        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           <Button
             variant="ghost"
             size="icon"
@@ -175,6 +195,7 @@ function Linha({
 
 export function ListaDeTarefas({
   tarefas,
+  propostas,
   podeEditar,
   aoAlternarConcluida,
   aoEditar,
@@ -209,7 +230,7 @@ export function ListaDeTarefas({
         <section key={grupo.faixa}>
           <h2
             className={cn(
-              "mb-1 px-3 text-xs font-semibold uppercase tracking-wider",
+              "mb-1 px-3 text-xs font-semibold tracking-wider uppercase",
               grupo.faixa === "atrasada" ? "text-destructive" : "text-muted-foreground",
             )}
           >
@@ -220,6 +241,7 @@ export function ListaDeTarefas({
               <Linha
                 key={tarefa.id}
                 tarefa={tarefa}
+                propostas={propostas}
                 podeEditar={podeEditar}
                 aoAlternarConcluida={aoAlternarConcluida}
                 aoEditar={aoEditar}

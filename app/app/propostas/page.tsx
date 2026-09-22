@@ -75,6 +75,14 @@ export default async function PropostasPage() {
                   <td className="px-4 py-4">
                     <p className="font-medium">{proposta.client_name}</p>
                     <p className="text-xs text-muted-foreground">Versão {proposta.version}</p>
+                    {proposta.lead_id ? (
+                      <Link
+                        href={`/app/leads/${proposta.lead_id}`}
+                        className="mt-1 inline-block text-xs text-accent hover:underline"
+                      >
+                        Ver card do funil
+                      </Link>
+                    ) : null}
                   </td>
                   <td className="px-4 py-4">
                     <span className="rounded-full bg-muted px-2.5 py-1 text-xs">

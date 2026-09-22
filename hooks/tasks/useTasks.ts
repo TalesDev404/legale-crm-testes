@@ -20,6 +20,7 @@ export interface FiltrosDeTarefa {
   status?: string;
   priority?: string;
   lead_id?: string;
+  proposal_id?: string;
   contact_id?: string;
   /** `true` = só o que ainda pede ação (pendente ou em andamento). */
   aberto?: boolean;
@@ -44,6 +45,7 @@ export function useTasks(filtros: FiltrosDeTarefa = {}) {
   if (filtros.status) params.set("status", filtros.status);
   if (filtros.priority) params.set("priority", filtros.priority);
   if (filtros.lead_id) params.set("lead_id", filtros.lead_id);
+  if (filtros.proposal_id) params.set("proposal_id", filtros.proposal_id);
   if (filtros.contact_id) params.set("contact_id", filtros.contact_id);
   if (filtros.aberto) params.set("aberto", "true");
   const qs = params.toString();

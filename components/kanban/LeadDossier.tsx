@@ -11,6 +11,7 @@ import { ConversaNoDossie } from "./ConversaNoDossie";
 import { LeadFieldsForm } from "./LeadFieldsForm";
 import { ScoreSlot } from "./ScoreSlot";
 import { LeadTimeline } from "./LeadTimeline";
+import { PropostasDoNegocio } from "./PropostasDoNegocio";
 import { OwnerBadge } from "./OwnerBadge";
 import { resolveLeadOwner } from "@/lib/kanban/owner";
 import type { CustomFieldDef } from "@/components/contacts/CustomFieldsEditor";
@@ -86,7 +87,7 @@ export function LeadDossier({
 
         {/* ① cabeçalho vivo */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border pb-3 text-xs">
-          <span className="font-medium tabular-nums text-text">
+          <span className="font-medium text-text tabular-nums">
             {formatBRL(lead.value_cents, lead.currency)}
           </span>
           <span className="text-text-muted">{stageName}</span>
@@ -132,9 +133,11 @@ export function LeadDossier({
 
         <ConversaNoDossie conversa={lead.conversa} />
 
+        <PropostasDoNegocio leadId={lead.id} active={open} />
+
         {/* ② timeline */}
         <section className="flex-1 py-3">
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+          <h3 className="mb-2 text-xs font-medium tracking-wide text-text-muted uppercase">
             {t("Linha do tempo")}
           </h3>
           <LeadTimeline
@@ -147,7 +150,7 @@ export function LeadDossier({
 
         {/* ③ campos, por último */}
         <div ref={campos} className="border-t border-border pt-3">
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
+          <h3 className="mb-2 text-xs font-medium tracking-wide text-text-muted uppercase">
             {t("Dados do negócio")}
           </h3>
           <LeadFieldsForm lead={lead} pipelineId={pipelineId} fieldDefs={fieldDefs} />

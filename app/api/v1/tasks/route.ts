@@ -39,7 +39,7 @@ export const dynamic = "force-dynamic";
 
 /** As colunas que a tela lê. Explícitas para o `select *` não vazar coluna nova. */
 const COLUNAS =
-  "id, organization_id, title, description, due_date, priority, status, lead_id, contact_id, assigned_to, created_by, created_at, updated_at";
+  "id, organization_id, title, description, due_date, priority, status, lead_id, proposal_id, contact_id, assigned_to, created_by, created_at, updated_at";
 
 const criacaoSchema = z.object({
   title: z.string().trim().min(1).max(255),
@@ -48,6 +48,7 @@ const criacaoSchema = z.object({
   priority: z.enum(PRIORIDADES_DA_TAREFA).default("medium"),
   status: z.enum(SITUACOES_DA_TAREFA).default("pending"),
   lead_id: z.string().uuid().nullable().optional(),
+  proposal_id: z.string().uuid().nullable().optional(),
   contact_id: z.string().uuid().nullable().optional(),
   assigned_to: z.string().uuid().nullable().optional(),
 });
@@ -56,6 +57,7 @@ const listaSchema = z.object({
   status: z.enum(SITUACOES_DA_TAREFA).optional(),
   priority: z.enum(PRIORIDADES_DA_TAREFA).optional(),
   lead_id: z.string().uuid().optional(),
+  proposal_id: z.string().uuid().optional(),
   contact_id: z.string().uuid().optional(),
   due_from: z.string().datetime({ offset: true }).optional(),
   due_to: z.string().datetime({ offset: true }).optional(),
@@ -94,6 +96,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (filtros.status) query = query.eq("status", filtros.status);
   if (filtros.priority) query = query.eq("priority", filtros.priority);
   if (filtros.lead_id) query = query.eq("lead_id", filtros.lead_id);
+  if (filtros.proposal_id) query = query.eq("proposal_id", filtros.proposal_id);
   if (filtros.contact_id) query = query.eq("contact_id", filtros.contact_id);
   if (filtros.due_from) query = query.gte("due_date", filtros.due_from);
   if (filtros.due_to) query = query.lte("due_date", filtros.due_to);
@@ -127,10 +130,27 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const supabase = await createClient();
+  let leadId = parsed.data.lead_id ?? null;
+  if (parsed.data.proposal_id) {
+    const { data: proposal } = await supabase
+      .from("commercial_proposals")
+      .select("id, lead_id")
+      .eq("organization_id", authz.org.orgId)
+      .eq("id", parsed.data.proposal_id)
+      .maybeSingle();
+    if (!proposal)
+      return fail("validation_failed", "A proposta vinculada não existe.", 422, { requestId });
+    if (leadId && proposal.lead_id && leadId !== proposal.lead_id)
+      return fail("validation_failed", "A proposta pertence a outro negócio.", 422, {
+        requestId,
+      });
+    leadId ??= proposal.lead_id;
+  }
   const { data, error } = await supabase
     .from("crm_tasks")
     .insert({
       ...parsed.data,
+      lead_id: leadId,
       organization_id: authz.org.orgId,
       created_by: authz.user.id,
     })
@@ -141,7 +161,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     // 23503 = lead ou contato de outra organização (ou apagado no meio). A
     // recusa nomeia o campo porque quem lê é quem escolheu na tela.
     if (error.code === "23503") {
-      return fail("validation_failed", t("O negócio ou contato vinculado não existe."), 422, {
+      return fail("validation_failed", t("O vínculo da tarefa não existe neste CRM."), 422, {
         requestId,
       });
     }

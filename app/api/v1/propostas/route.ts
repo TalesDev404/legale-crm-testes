@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
+import { z } from "zod";
 
 import { audit } from "@/lib/audit";
 import { fail, ok } from "@/lib/api/wrappers";
@@ -17,18 +18,24 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<Response> {
+export async function GET(req: NextRequest): Promise<Response> {
   const requestId = randomUUID();
   const authz = await requireRole("viewer", { requestId, resource: "commercial_proposals" });
   if (!authz.ok) return authz.response;
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const leadId = new URL(req.url).searchParams.get("lead_id");
+  if (leadId && !z.string().uuid().safeParse(leadId).success) {
+    return fail("validation_failed", "Negócio inválido.", 422, { requestId });
+  }
+  let query = supabase
     .from("commercial_proposals")
     .select(COLUNAS_DA_PROPOSTA)
     .eq("organization_id", authz.org.orgId)
     .order("updated_at", { ascending: false })
     .limit(200);
+  if (leadId) query = query.eq("lead_id", leadId);
+  const { data, error } = await query;
 
   if (error) return fail("internal_error", "Erro ao listar as propostas.", 500, { requestId });
   return ok(data ?? [], { requestId });
@@ -155,12 +162,25 @@ export async function POST(req: NextRequest): Promise<Response> {
         requestId,
       });
   }
+  if (parsed.data.lead_id) {
+    const { data: lead } = await supabase
+      .from("crm_leads")
+      .select("id")
+      .eq("organization_id", authz.org.orgId)
+      .eq("id", parsed.data.lead_id)
+      .maybeSingle();
+    if (!lead)
+      return fail("validation_failed", "O negócio não pertence à organização ativa.", 422, {
+        requestId,
+      });
+  }
   const { data, error } = await supabase
     .from("commercial_proposals")
     .insert({
       ...parsed.data,
       items: itensConferidos,
       contact_id: parsed.data.contact_id || null,
+      lead_id: parsed.data.lead_id || null,
       recipient_name: parsed.data.recipient_name || null,
       recipient_email: parsed.data.recipient_email || null,
       notes: parsed.data.notes || null,

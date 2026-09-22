@@ -24,6 +24,7 @@ type Contact = {
   name: string | null;
   email: string | null;
 };
+type LeadOption = { id: string; title: string; contact_id: string | null };
 
 function isoHoje(): string {
   const agora = new Date();
@@ -38,22 +39,31 @@ function somarDias(data: string, dias: number): string {
 
 export function NovaPropostaClient({
   contacts,
+  leads,
+  initialLeadId,
   companyName,
   catalog,
 }: {
   contacts: Contact[];
+  leads: LeadOption[];
+  initialLeadId?: string;
   companyName: string;
   catalog: ItemDoCatalogo[];
 }) {
   const router = useRouter();
   const hoje = React.useMemo(() => isoHoje(), []);
-  const [clientName, setClientName] = React.useState("");
+  const initialLead = leads.find((lead) => lead.id === initialLeadId);
+  const initialContact = contacts.find((contact) => contact.id === initialLead?.contact_id);
+  const initialName =
+    initialContact?.display_name || initialContact?.name || initialLead?.title || "";
+  const [clientName, setClientName] = React.useState(initialName);
   const [clientKind, setClientKind] = React.useState<"escritorio" | "departamento_juridico">(
     "departamento_juridico",
   );
-  const [contactId, setContactId] = React.useState("");
-  const [recipientName, setRecipientName] = React.useState("");
-  const [recipientEmail, setRecipientEmail] = React.useState("");
+  const [contactId, setContactId] = React.useState(initialContact?.id ?? "");
+  const [leadId, setLeadId] = React.useState(initialLead?.id ?? "");
+  const [recipientName, setRecipientName] = React.useState(initialName);
+  const [recipientEmail, setRecipientEmail] = React.useState(initialContact?.email ?? "");
   const [issueDate, setIssueDate] = React.useState(hoje);
   const [validUntil, setValidUntil] = React.useState(somarDias(hoje, 15));
   const [selected, setSelected] = React.useState<string[]>([]);
@@ -75,6 +85,13 @@ export function NovaPropostaClient({
     setClientName(name);
     setRecipientName(name);
     setRecipientEmail(contact.email ?? "");
+  }
+
+  function chooseLead(id: string) {
+    setLeadId(id);
+    const lead = leads.find((item) => item.id === id);
+    if (lead?.contact_id) chooseContact(lead.contact_id);
+    else if (lead && !clientName.trim()) setClientName(lead.title);
   }
 
   function toggleItem(item: ItemDoCatalogo, checked: boolean) {
@@ -285,6 +302,7 @@ export function NovaPropostaClient({
     try {
       const response = await apiClient.post<{ data: PropostaComercial }>("/api/v1/propostas", {
         contact_id: contactId || null,
+        lead_id: leadId || null,
         client_name: clientName,
         client_kind: clientKind,
         recipient_name: recipientName,
@@ -320,6 +338,21 @@ export function NovaPropostaClient({
           <section className="rounded-xl border bg-surface p-5">
             <h2 className="font-semibold">1. Cliente</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <label className="text-sm sm:col-span-2">
+                Card do funil
+                <select
+                  value={leadId}
+                  onChange={(event) => chooseLead(event.target.value)}
+                  className="mt-1 h-10 w-full rounded-lg border border-border bg-surface px-3 outline-hidden transition-colors hover:border-border-strong focus:border-accent-500 focus:ring-2 focus:ring-accent-soft"
+                >
+                  <option value="">Sem vínculo com um negócio</option>
+                  {leads.map((lead) => (
+                    <option key={lead.id} value={lead.id}>
+                      {lead.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="text-sm sm:col-span-2">
                 Usar um contato existente{" "}
                 <select
