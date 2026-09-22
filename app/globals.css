@@ -452,6 +452,31 @@
    layer. Vigiado por `tests/unit/tailwind-tokens.test.ts`; se um dia alguém
    embrulhar o `:root` num `@layer`, o teste reprova e a explicação está aqui.
    ───────────────────────────────────────────────────────────────────────── */
+/* Identidade fixa das telas de acesso do CRM Comercial Legale. Mantida em uma
+   subárvore para não alterar as cores configuráveis do restante do produto. */
+.legale-public-theme {
+  --color-accent-50: #faf5ff;
+  --color-accent-100: #f3e8ff;
+  --color-accent-200: #e9d5ff;
+  --color-accent-300: #d8b4fe;
+  --color-accent-400: #bd85ff;
+  --color-accent-500: #a855f7;
+  --color-accent-600: #8e24fe;
+  --color-accent-700: #7718df;
+  --color-accent-800: #6215b8;
+  --color-accent-900: #501293;
+  --color-accent-950: #31075f;
+  --color-accent: #8e24fe;
+  --color-accent-fg: #ffffff;
+  --color-accent-soft: rgba(142, 36, 254, 0.12);
+  --color-accent-hover: #7718df;
+  --primary: #8e24fe;
+  --primary-foreground: #ffffff;
+  --accent: #8e24fe;
+  --accent-foreground: #ffffff;
+  --ring: #a855f7;
+}
+
 @theme inline {
   /* Foundation */
   --color-bg: var(--color-bg);
