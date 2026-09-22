@@ -34,7 +34,7 @@ export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellPr
   return (
     <div className="flex min-h-screen w-full bg-background">
       <BarraDeProgressoNavegacao />
-      <div className="hidden md:block">
+      <div className="app-shell-sidebar hidden md:block">
         <Sidebar collapsed={sidebarCollapsed} />
       </div>
       {/*
@@ -56,9 +56,11 @@ export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellPr
         SEGUNDA medida da mesma coisa — a que discordava e deixava a barra por
         cima da lista.
       */}
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <TopBar />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+      <div className="app-shell-content flex min-h-screen min-w-0 flex-1 flex-col">
+        <div className="app-shell-topbar">
+          <TopBar />
+        </div>
+        <main className="app-shell-main flex-1 overflow-auto p-6">{children}</main>
       </div>
     </div>
   );
