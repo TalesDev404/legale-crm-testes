@@ -368,24 +368,33 @@ export default async function PropostaPage({ params }: { params: Promise<{ id: s
             titulo="Sua contratação."
             descricao={descricaoDoEscopo}
           />
-          <div className="mt-11 grid grid-cols-2 gap-4">
+          <ul className="mt-11 border-t border-[#e4ddeb]">
             {scopeItems.map((item) => (
-              <div key={item.codigo} className="rounded-xl bg-[#f6f3fa] p-5">
-                <Selo>Incluído</Selo>
-                <h3 className="mt-4 text-[16px] leading-5 font-semibold text-[#291c3f]">
-                  {item.nome}
-                </h3>
-                <p className="mt-2 text-[12px] leading-5 text-[#70687e]">
-                  {item.descricao || "Incluído nesta proposta comercial."}
-                </p>
-                {item.quantidade > 1 ? (
-                  <p className="mt-3 text-[10px] font-bold tracking-[.06em] text-[#7927e8] uppercase">
-                    {quantidadeComUnidade(item)}
+              <li
+                key={item.codigo}
+                className="flex justify-between gap-8 border-b border-[#e4ddeb] py-5"
+              >
+                <div className="min-w-0">
+                  <h3 className="text-[16px] leading-5 font-semibold text-[#291c3f]">
+                    {item.nome}
+                  </h3>
+                  <p className="mt-2 text-[12px] leading-5 text-[#70687e]">
+                    {item.descricao || "Incluído nesta proposta comercial."}
                   </p>
-                ) : null}
-              </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <span className="text-[10px] font-bold tracking-[.08em] text-[#007e78] uppercase">
+                    Incluído
+                  </span>
+                  {item.quantidade > 1 ? (
+                    <p className="mt-2 text-[10px] font-semibold text-[#70687e]">
+                      {quantidadeComUnidade(item)}
+                    </p>
+                  ) : null}
+                </div>
+              </li>
             ))}
-          </div>
+          </ul>
           <RodapeDaPagina cliente={proposal.client_name} pagina={3} />
         </section>
 
