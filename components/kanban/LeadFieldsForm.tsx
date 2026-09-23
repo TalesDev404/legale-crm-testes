@@ -51,13 +51,16 @@ function centsToReais(cents: number | null | undefined): string {
 export function LeadFieldsForm({ lead, pipelineId, fieldDefs = [], onSaved, onCancel }: Props) {
   const t = useT();
   const edit = useEditLead(pipelineId);
-  const [customFields, setCustomFields] = useState<Record<string, unknown>>(lead.custom_fields ?? {});
+  const valorVemDaProposta = lead.proposal_monthly_cents != null;
+  const [customFields, setCustomFields] = useState<Record<string, unknown>>(
+    lead.custom_fields ?? {},
+  );
 
   const form = useForm<FormShape>({
     defaultValues: {
       title: lead.title,
       description: lead.description ?? "",
-      valueReais: centsToReais(lead.value_cents),
+      valueReais: centsToReais(lead.proposal_monthly_cents ?? lead.value_cents),
       tagsRaw: (lead.tags ?? []).join(", "),
       expected_close_date: lead.expected_close_date ?? "",
     },
@@ -67,7 +70,7 @@ export function LeadFieldsForm({ lead, pipelineId, fieldDefs = [], onSaved, onCa
     form.reset({
       title: lead.title,
       description: lead.description ?? "",
-      valueReais: centsToReais(lead.value_cents),
+      valueReais: centsToReais(lead.proposal_monthly_cents ?? lead.value_cents),
       tagsRaw: (lead.tags ?? []).join(", "),
       expected_close_date: lead.expected_close_date ?? "",
     });
@@ -75,15 +78,21 @@ export function LeadFieldsForm({ lead, pipelineId, fieldDefs = [], onSaved, onCa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead.id]);
 
+  useEffect(() => {
+    form.setValue("valueReais", centsToReais(lead.proposal_monthly_cents ?? lead.value_cents));
+    // A atualização das propostas altera só o valor; preservar os demais campos em edição.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lead.proposal_monthly_cents, lead.value_cents]);
+
   async function onSubmit(values: FormShape) {
     const tags = values.tagsRaw
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const reais = values.valueReais.trim();
+    const reais = (values.valueReais ?? "").trim();
     let valueCents: number | null = null;
-    if (reais.length > 0) {
+    if (!valorVemDaProposta && reais.length > 0) {
       valueCents = parseReaisToCents(reais);
       if (valueCents === null) {
         form.setError("valueReais", { message: t("Valor inválido") });
@@ -94,7 +103,7 @@ export function LeadFieldsForm({ lead, pipelineId, fieldDefs = [], onSaved, onCa
     const patch: Record<string, unknown> = {
       title: values.title.trim(),
       description: values.description.trim() ? values.description.trim() : null,
-      value_cents: valueCents,
+      ...(!valorVemDaProposta ? { value_cents: valueCents } : {}),
       tags,
       expected_close_date: values.expected_close_date || null,
       ...(fieldDefs.length > 0 ? { custom_fields: customFields } : {}),
@@ -119,64 +128,66 @@ export function LeadFieldsForm({ lead, pipelineId, fieldDefs = [], onSaved, onCa
     }
   }
 
-
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="title">{t("Título")}</Label>
+        <Input id="title" {...form.register("title", { required: true, minLength: 2 })} />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description">{t("Descrição")}</Label>
+        <Textarea id="description" rows={3} {...form.register("description")} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor="title">{t("Título")}</Label>
+          <Label htmlFor="valueReais">
+            {valorVemDaProposta ? "Mensalidade das propostas (R$)" : t("Valor (R$)")}
+          </Label>
           <Input
-            id="title"
-            {...form.register("title", { required: true, minLength: 2 })}
+            id="valueReais"
+            inputMode="decimal"
+            placeholder="0,00"
+            disabled={valorVemDaProposta}
+            {...form.register("valueReais")}
+          />
+          {valorVemDaProposta ? (
+            <p className="text-xs text-muted-foreground">
+              Valor calculado pelas propostas vinculadas. O valor manual permanece salvo para quando
+              não houver propostas.
+            </p>
+          ) : (
+            <EcoDoValor control={form.control} />
+          )}
+          {form.formState.errors.valueReais && (
+            <p className="text-xs text-error-fg">
+              {t(form.formState.errors.valueReais.message ?? "")}
+            </p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="expected_close_date">{t("Fechamento previsto")}</Label>
+          <Input id="expected_close_date" type="date" {...form.register("expected_close_date")} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="tagsRaw">{t("Tags (separadas por vírgula)")}</Label>
+        <Input id="tagsRaw" placeholder="vip, recompra" {...form.register("tagsRaw")} />
+      </div>
+
+      {fieldDefs.length > 0 && (
+        <div className="space-y-2 border-t border-border pt-4">
+          <p className="text-sm font-medium">{t("Campos do funil")}</p>
+          <CustomFieldsEditor
+            fields={fieldDefs}
+            value={customFields}
+            onChange={setCustomFields}
+            mode="lead"
           />
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="description">{t("Descrição")}</Label>
-          <Textarea id="description" rows={3} {...form.register("description")} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label htmlFor="valueReais">{t("Valor (R$)")}</Label>
-            <Input
-              id="valueReais"
-              inputMode="decimal"
-              placeholder="0,00"
-              {...form.register("valueReais")}
-            />
-            <EcoDoValor control={form.control} />
-            {form.formState.errors.valueReais && (
-              <p className="text-xs text-error-fg">
-                {t(form.formState.errors.valueReais.message ?? "")}
-              </p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="expected_close_date">{t("Fechamento previsto")}</Label>
-            <Input
-              id="expected_close_date"
-              type="date"
-              {...form.register("expected_close_date")}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="tagsRaw">{t("Tags (separadas por vírgula)")}</Label>
-          <Input id="tagsRaw" placeholder="vip, recompra" {...form.register("tagsRaw")} />
-        </div>
-
-        {fieldDefs.length > 0 && (
-          <div className="space-y-2 border-t border-border pt-4">
-            <p className="text-sm font-medium">{t("Campos do funil")}</p>
-            <CustomFieldsEditor
-              fields={fieldDefs}
-              value={customFields}
-              onChange={setCustomFields}
-              mode="lead"
-            />
-          </div>
-        )}
+      )}
 
       <div className="flex justify-end gap-2">
         {onCancel && (

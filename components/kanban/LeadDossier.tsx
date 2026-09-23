@@ -7,6 +7,7 @@ import { useT } from "@/hooks/i18n/useT";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useLeadTimeline } from "@/hooks/leads/useLeadTimeline";
 import type { Lead } from "@/lib/types/leads";
+import { valorDoCard } from "@/lib/leads/valor-do-card";
 import { ConversaNoDossie } from "./ConversaNoDossie";
 import { LeadFieldsForm } from "./LeadFieldsForm";
 import { ScoreSlot } from "./ScoreSlot";
@@ -26,16 +27,17 @@ interface Props {
   ownerNames?: Map<string, string | null>;
 }
 
-function formatBRL(cents: number | null, currency: string | null): string {
+function formatBRL(cents: number | null, currency: string | null, showCents = false): string {
   if (cents === null) return "—";
   try {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: currency ?? "BRL",
-      maximumFractionDigits: 0,
+      minimumFractionDigits: showCents ? 2 : 0,
+      maximumFractionDigits: showCents ? 2 : 0,
     }).format(cents / 100);
   } catch {
-    return `R$ ${(cents / 100).toFixed(0)}`;
+    return `R$ ${(cents / 100).toFixed(showCents ? 2 : 0)}`;
   }
 }
 
@@ -67,6 +69,7 @@ export function LeadDossier({
   const timeline = useLeadTimeline(open ? lead.id : null, lead.contact_id);
   const owner = resolveLeadOwner(lead, ownerNames);
   const score = lead.score ?? null;
+  const valor = valorDoCard(lead);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -88,8 +91,14 @@ export function LeadDossier({
         {/* ① cabeçalho vivo */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border pb-3 text-xs">
           <span className="font-medium text-text tabular-nums">
-            {formatBRL(lead.value_cents, lead.currency)}
+            {formatBRL(valor.cents, valor.currency, valor.fromProposals)}
           </span>
+          {valor.fromProposals ? <span className="text-text-muted">/ mês · propostas</span> : null}
+          {valor.fromProposals ? (
+            <span className="text-text-muted tabular-nums">
+              Valor único: {formatBRL(valor.oneTimeCents, "BRL", true)}
+            </span>
+          ) : null}
           <span className="text-text-muted">{stageName}</span>
           <OwnerBadge
             ownerKind={owner.kind}

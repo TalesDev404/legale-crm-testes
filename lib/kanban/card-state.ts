@@ -1,6 +1,7 @@
 import type { ScoreBand } from "@/lib/kanban/score-band";
 import { resolveLeadOwner, type OwnerDisplay } from "@/lib/kanban/owner";
 import type { Lead } from "@/lib/types/leads";
+import { valorDoCard } from "@/lib/leads/valor-do-card";
 
 /**
  * O que o card do Kanban precisa saber — e SÓ isso.
@@ -14,7 +15,9 @@ export interface CardInput {
   id: string;
   title: string;
   valueCents: number | null;
+  oneTimeCents?: number | null;
   currency: string | null;
+  valueFromProposals?: boolean;
   owner: OwnerDisplay;
   /** Nome do estágio atual — o "3d em Negociação" do rodapé. */
   stageName: string;
@@ -72,6 +75,8 @@ export function buildCardInput(
     | "id"
     | "title"
     | "value_cents"
+    | "proposal_monthly_cents"
+    | "proposal_activation_cents"
     | "currency"
     | "tags"
     | "last_activity_at"
@@ -104,11 +109,14 @@ export function buildCardInput(
     ? Math.max(0, (now.getTime() - new Date(reference).getTime()) / 3_600_000)
     : null;
 
+  const valor = valorDoCard(lead);
   return {
     id: lead.id,
     title: lead.title,
-    valueCents: lead.value_cents,
-    currency: lead.currency,
+    valueCents: valor.cents,
+    oneTimeCents: valor.oneTimeCents,
+    currency: valor.currency,
+    valueFromProposals: valor.fromProposals,
     owner: resolveLeadOwner(lead, opts.ownerNames),
     stageName: opts.stageName,
     hoursInStage,

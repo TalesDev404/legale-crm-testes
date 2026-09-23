@@ -45,14 +45,15 @@ interface KanbanCardProps {
   onOpen?: (leadId: string) => void;
 }
 
-function formatBRL(cents: number | null, currency: string | null): string | null {
+function formatBRL(cents: number | null, currency: string | null, showCents = false): string | null {
   if (cents == null) return null;
   const code = currency ?? "BRL";
   try {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: code,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: showCents ? 2 : 0,
+      maximumFractionDigits: showCents ? 2 : 0,
     }).format(cents / 100);
   } catch {
     return `${(cents / 100).toFixed(2)} ${code}`;
@@ -82,7 +83,10 @@ export function KanbanCard({
   onOpen,
 }: KanbanCardProps) {
   const t = useT();
-  const value = formatBRL(card.valueCents, card.currency);
+  const value = formatBRL(card.valueCents, card.currency, card.valueFromProposals);
+  const oneTimeValue = card.valueFromProposals
+    ? formatBRL(card.oneTimeCents ?? 0, "BRL", true)
+    : null;
   const state = resolveCardState(card, t);
   const age = stageAgeLabel(card.hoursInStage, t);
 
@@ -241,15 +245,18 @@ export function KanbanCard({
             <KanbanCardActions lead={lead} pipelineId={pipelineId} />
           </div>
 
-          {/* ② valor — altura reservada mesmo sem valor, senão o card encolhe. */}
-          <p
-            className={cn(
-              "mt-1 h-5 text-xs font-medium leading-5 tabular-nums",
-              value ? "text-text" : "text-text-muted",
-            )}
-          >
-            {value ?? "—"}
-          </p>
+          {/* ② valores — duas linhas reservadas mantêm os cards alinhados. */}
+          <div className="mt-1 h-10 text-xs leading-5 tabular-nums">
+            <p className={cn("h-5 truncate font-medium", value ? "text-text" : "text-text-muted")}>
+              {value ?? "—"}
+              {value && card.valueFromProposals ? (
+                <span className="ml-1 font-normal text-text-muted">/mês</span>
+              ) : null}
+            </p>
+            {oneTimeValue ? (
+              <p className="h-5 truncate text-text-muted">{oneTimeValue} valor único</p>
+            ) : null}
+          </div>
 
           {/* ③ a linha do agente — um slot, três estados, nunca três blocos. */}
           <div className="mt-1.5 flex h-6 items-center gap-2 text-xs">

@@ -44,12 +44,13 @@ function centsToReais(cents: number | null | undefined): string {
 export function EditLeadDialog({ open, onOpenChange, lead, pipelineId }: Props) {
   const t = useT();
   const edit = useEditLead(pipelineId);
+  const valorVemDaProposta = lead.proposal_monthly_cents != null;
 
   const form = useForm<FormShape>({
     defaultValues: {
       title: lead.title,
       description: lead.description ?? "",
-      valueReais: centsToReais(lead.value_cents),
+      valueReais: centsToReais(lead.proposal_monthly_cents ?? lead.value_cents),
       tagsRaw: (lead.tags ?? []).join(", "),
       expected_close_date: lead.expected_close_date ?? "",
     },
@@ -60,13 +61,13 @@ export function EditLeadDialog({ open, onOpenChange, lead, pipelineId }: Props) 
       form.reset({
         title: lead.title,
         description: lead.description ?? "",
-        valueReais: centsToReais(lead.value_cents),
+        valueReais: centsToReais(lead.proposal_monthly_cents ?? lead.value_cents),
         tagsRaw: (lead.tags ?? []).join(", "),
         expected_close_date: lead.expected_close_date ?? "",
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, lead.id]);
+  }, [open, lead.id, lead.proposal_monthly_cents, lead.value_cents]);
 
   async function onSubmit(values: FormShape) {
     const tags = values.tagsRaw
@@ -74,9 +75,9 @@ export function EditLeadDialog({ open, onOpenChange, lead, pipelineId }: Props) 
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const reais = values.valueReais.trim();
+    const reais = (values.valueReais ?? "").trim();
     let valueCents: number | null = null;
-    if (reais.length > 0) {
+    if (!valorVemDaProposta && reais.length > 0) {
       valueCents = parseReaisToCents(reais);
       if (valueCents === null) {
         form.setError("valueReais", { message: t("Valor inválido") });
@@ -87,7 +88,7 @@ export function EditLeadDialog({ open, onOpenChange, lead, pipelineId }: Props) 
     const patch: Record<string, unknown> = {
       title: values.title.trim(),
       description: values.description.trim() ? values.description.trim() : null,
-      value_cents: valueCents,
+      ...(!valorVemDaProposta ? { value_cents: valueCents } : {}),
       tags,
       expected_close_date: values.expected_close_date || null,
     };
@@ -123,10 +124,7 @@ export function EditLeadDialog({ open, onOpenChange, lead, pipelineId }: Props) 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">{t("Título")}</Label>
-            <Input
-              id="title"
-              {...form.register("title", { required: true, minLength: 2 })}
-            />
+            <Input id="title" {...form.register("title", { required: true, minLength: 2 })} />
           </div>
 
           <div className="space-y-2">
@@ -136,18 +134,25 @@ export function EditLeadDialog({ open, onOpenChange, lead, pipelineId }: Props) 
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="valueReais">{t("Valor (R$)")}</Label>
+              <Label htmlFor="valueReais">
+                {valorVemDaProposta ? "Mensalidade das propostas (R$)" : t("Valor (R$)")}
+              </Label>
               <Input
                 id="valueReais"
                 inputMode="decimal"
                 placeholder="0,00"
+                disabled={valorVemDaProposta}
                 {...form.register("valueReais")}
               />
-              <EcoDoValor control={form.control} />
-              {form.formState.errors.valueReais && (
-                <p className="text-xs text-error-fg">
-                  {form.formState.errors.valueReais.message}
+              {valorVemDaProposta ? (
+                <p className="text-xs text-muted-foreground">
+                  Calculado pelas propostas vinculadas. O valor manual permanece salvo.
                 </p>
+              ) : (
+                <EcoDoValor control={form.control} />
+              )}
+              {form.formState.errors.valueReais && (
+                <p className="text-xs text-error-fg">{form.formState.errors.valueReais.message}</p>
               )}
             </div>
             <div className="space-y-2">

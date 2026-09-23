@@ -8,6 +8,7 @@ import type { Stage } from "@/lib/kanban/types";
 import { buildCardInput } from "@/lib/kanban/card-state";
 import { intervaloDaColuna } from "@/lib/kanban/selecao";
 import { formatCents, MOEDA_PADRAO } from "@/lib/money";
+import { valorDoCard } from "@/lib/leads/valor-do-card";
 import { KanbanCard, type GestoDeSelecao } from "./KanbanCard";
 
 interface StageColumnProps {
@@ -50,7 +51,7 @@ export function StageColumn({
   onOpen,
 }: StageColumnProps) {
   const t = useT();
-  const totalCents = leads.reduce((sum, l) => sum + (l.value_cents ?? 0), 0);
+  const totalCents = leads.reduce((sum, lead) => sum + (valorDoCard(lead).cents ?? 0), 0);
   // O total saía SEMPRE em R$: a coluna tinha a sexta cópia do formatador de
   // dinheiro (`formatBRL`, locale e moeda em duro), e a moeda em duro é o que a
   // cópia escondia. Numa organização em peso ou dólar o número estava certo e o
@@ -61,7 +62,8 @@ export function StageColumn({
   // agrupa por moeda, nem antes nem agora); o que muda é que o rótulo passa a
   // dizer a verdade no caso comum, que é o board de moeda única. `MOEDA_PADRAO`
   // só cobre a coluna sem nenhum lead com valor — onde o total nem aparece.
-  const moedaDoTotal = leads.find((l) => l.value_cents != null)?.currency ?? MOEDA_PADRAO;
+  const moedaDoTotal =
+    leads.map(valorDoCard).find((valor) => valor.cents != null)?.currency ?? MOEDA_PADRAO;
 
   const idsVisiveis = leads.map((l) => l.id);
   const selecionadosAqui = idsVisiveis.filter((id) => selectedLeadIds?.has(id)).length;
@@ -92,7 +94,7 @@ export function StageColumn({
     : undefined;
 
   return (
-    <div className="flex w-80 shrink-0 flex-col rounded-lg border border-border bg-surface-muted/40">
+    <div className="bg-surface-muted/40 flex w-80 shrink-0 flex-col rounded-lg border border-border">
       <div className="group/etapa flex items-center gap-2 border-b border-border px-3 py-2.5">
         {/* "Selecionar a etapa inteira" é o gesto que faz a ação em lote valer a
             pena: sem ele, mover trinta cards deixa de ser trinta arrastes e vira
@@ -121,23 +123,18 @@ export function StageColumn({
           )}
         />
         <span
-          className={cn(
-            "h-2 w-2 rounded-full",
-            !stage.color && "bg-text-muted/40",
-          )}
+          className={cn("h-2 w-2 rounded-full", !stage.color && "bg-text-muted/40")}
           style={accentStyle}
           aria-hidden
         />
-        <h2 className="flex-1 truncate text-sm font-semibold text-text">
-          {stage.name}
-        </h2>
-        <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium tabular-nums text-text-muted">
+        <h2 className="flex-1 truncate text-sm font-semibold text-text">{stage.name}</h2>
+        <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium text-text-muted tabular-nums">
           {selecionadosAqui > 0 ? `${selecionadosAqui}/${leads.length}` : leads.length}
         </span>
       </div>
 
       {totalCents > 0 && (
-        <div className="border-b border-border px-3 py-1.5 text-[11px] tabular-nums text-text-muted">
+        <div className="border-b border-border px-3 py-1.5 text-[11px] text-text-muted tabular-nums">
           {formatCents(totalCents, moedaDoTotal)}
         </div>
       )}

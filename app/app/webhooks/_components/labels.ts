@@ -12,7 +12,8 @@ export type ActionType =
   | "add_tag"
   | "assign_owner"
   | "call_webhook"
-  | "start_message_flow";
+  | "start_message_flow"
+  | "prepare_email_for_approval";
 
 export const TRIGGER_LABELS: Record<TriggerEvent, string> = {
   "lead.created": "Quando entrar um contato novo (webhook)",
@@ -42,4 +43,5 @@ export const ACTION_LABELS: Record<ActionType, string> = {
   assign_owner: "Atribuir a um atendente",
   call_webhook: "Avisar outro sistema (webhook)",
   start_message_flow: "Iniciar fluxo de mensagem",
+  prepare_email_for_approval: "Preparar e-mail para aprovação",
 };

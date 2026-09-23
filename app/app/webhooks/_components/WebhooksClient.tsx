@@ -6,6 +6,7 @@ import { SourcesTab } from "./SourcesTab";
 import { RulesTab } from "./RulesTab";
 import { ActivityTab } from "./ActivityTab";
 import { CapturasTab } from "./CapturasTab";
+import { EmailsTab } from "./EmailsTab";
 import { useT } from "@/hooks/i18n/useT";
 
 export function WebhooksClient() {
@@ -29,23 +30,25 @@ export function WebhooksClient() {
     // estima a olho.
     return (
       <div className="flex-1">
-        <Skeleton className="h-9 w-[432px]" />
+        <Skeleton className="h-9 w-[500px]" />
       </div>
     );
   }
 
   return (
-    <Tabs defaultValue="sources" className="flex-1">
+    <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") === "emails" ? "emails" : "sources"} className="flex-1">
       <TabsList>
         <TabsTrigger value="sources">{t("Receber dados")}</TabsTrigger>
         <TabsTrigger value="capturas">{t("Leads recebidos")}</TabsTrigger>
         <TabsTrigger value="rules">{t("Automações")}</TabsTrigger>
         <TabsTrigger value="activity">{t("Atividade")}</TabsTrigger>
+        <TabsTrigger value="emails">E-mails</TabsTrigger>
       </TabsList>
       <TabsContent value="sources"><SourcesTab /></TabsContent>
       <TabsContent value="capturas"><CapturasTab /></TabsContent>
       <TabsContent value="rules"><RulesTab /></TabsContent>
       <TabsContent value="activity"><ActivityTab /></TabsContent>
+      <TabsContent value="emails"><EmailsTab /></TabsContent>
     </Tabs>
   );
 }

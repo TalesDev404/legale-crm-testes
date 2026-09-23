@@ -24,9 +24,14 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!authz.ok) return authz.response;
 
   const supabase = await createClient();
-  const leadId = new URL(req.url).searchParams.get("lead_id");
+  const params = new URL(req.url).searchParams;
+  const leadId = params.get("lead_id");
+  const search = params.get("search")?.trim();
   if (leadId && !z.string().uuid().safeParse(leadId).success) {
     return fail("validation_failed", "Negócio inválido.", 422, { requestId });
+  }
+  if (search && search.length > 80) {
+    return fail("validation_failed", "Busca muito longa.", 422, { requestId });
   }
   let query = supabase
     .from("commercial_proposals")
@@ -35,6 +40,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .order("updated_at", { ascending: false })
     .limit(200);
   if (leadId) query = query.eq("lead_id", leadId);
+  if (search) query = query.ilike("client_name", `%${search.replace(/[%_\\]/g, "\\$&")}%`);
   const { data, error } = await query;
 
   if (error) return fail("internal_error", "Erro ao listar as propostas.", 500, { requestId });

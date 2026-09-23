@@ -32,7 +32,11 @@ export type ActionItem =
   | { type: "add_tag"; config: { tags: string[] } }
   | { type: "assign_owner"; config: { user_id: string } }
   | { type: "call_webhook"; config: { url: string; secret?: string; secret_enc?: string } }
-  | { type: "start_message_flow"; config: { flow_pointer_id: string } };
+  | { type: "start_message_flow"; config: { flow_pointer_id: string } }
+  | {
+      type: "prepare_email_for_approval";
+      config: { action_key: string; subject_template: string; body_template: string; ai_instruction: string };
+    };
 
 export function defaultActionConfig(type: ActionItem["type"]): ActionItem {
   switch (type) {
@@ -50,6 +54,11 @@ export function defaultActionConfig(type: ActionItem["type"]): ActionItem {
       return { type, config: { url: "" } };
     case "start_message_flow":
       return { type, config: { flow_pointer_id: "" } };
+    case "prepare_email_for_approval":
+      return {
+        type,
+        config: { action_key: crypto.randomUUID(), subject_template: "", body_template: "", ai_instruction: "" },
+      };
   }
 }
 
@@ -422,6 +431,62 @@ function StartMessageFlowForm({ config, onChange }: FormProps<{ flow_pointer_id:
   );
 }
 
+function PrepareEmailForm({
+  config,
+  onChange,
+}: FormProps<{
+  action_key: string;
+  subject_template: string;
+  body_template: string;
+  ai_instruction: string;
+}>) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        O gatilho prepara um rascunho para o e-mail do contato. Nada é enviado até alguém revisar e aprovar na aba E-mails.
+      </p>
+      <div className="space-y-1">
+        <Label htmlFor="email-subject">Assunto</Label>
+        <Input
+          id="email-subject"
+          value={config.subject_template}
+          onChange={(event) => onChange({ ...config, subject_template: event.target.value })}
+          placeholder="Uma proposta para {{nome}}"
+          maxLength={200}
+        />
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="email-body">Texto base</Label>
+        <Textarea
+          id="email-body"
+          rows={5}
+          value={config.body_template}
+          onChange={(event) => onChange({ ...config, body_template: event.target.value })}
+          placeholder="Olá, {{nome}}. Conforme conversamos..."
+          maxLength={6000}
+        />
+        <p className="text-xs text-muted-foreground">
+          Pode usar {"{{nome}}"}, {"{{contact.name}}"} e {"{{lead.title}}"}. O destinatário vem do cadastro do contato.
+        </p>
+      </div>
+      <div className="space-y-1">
+        <Label htmlFor="email-ai-instruction">Orientação para a IA (opcional)</Label>
+        <Textarea
+          id="email-ai-instruction"
+          rows={3}
+          value={config.ai_instruction}
+          onChange={(event) => onChange({ ...config, ai_instruction: event.target.value })}
+          placeholder="Personalize o texto com o contexto do cliente e mantenha um tom consultivo."
+          maxLength={1000}
+        />
+        <p className="text-xs text-muted-foreground">
+          A IA pode sugerir o texto após ler o contato, o negócio e a proposta vinculada. Se estiver indisponível, o texto base vai para revisão com aviso.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function ActionConfigForm({
   action,
   onChange,
@@ -475,6 +540,13 @@ export function ActionConfigForm({
     case "start_message_flow":
       return (
         <StartMessageFlowForm
+          config={action.config}
+          onChange={(config) => onChange({ type: action.type, config })}
+        />
+      );
+    case "prepare_email_for_approval":
+      return (
+        <PrepareEmailForm
           config={action.config}
           onChange={(config) => onChange({ type: action.type, config })}
         />

@@ -272,6 +272,11 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional().default(""),
   RESEND_FROM_EMAIL: z.string().optional().default(""),
 
+  // Integração opcional de e-mail comercial pelo Microsoft Graph. Sem este par,
+  // o CRM continua funcionando e a tela de conexão explica o que falta.
+  OUTLOOK_CLIENT_ID: z.string().optional().default(""),
+  OUTLOOK_CLIENT_SECRET: z.string().optional().default(""),
+
   /**
    * E-mail de suporte que a instalação mostra ao CLIENTE FINAL (tela de conta
    * suspensa, tela de cobrança).

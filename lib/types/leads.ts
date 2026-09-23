@@ -43,6 +43,10 @@ export interface Lead {
   lost_reason: string | null;
   position_in_stage: number;
   value_cents: number | null;
+  /** Mensalidade das propostas vinculadas. Null = usar o valor manual do card. */
+  proposal_monthly_cents?: number | null;
+  /** Soma dos valores únicos das propostas vinculadas. */
+  proposal_activation_cents?: number | null;
   currency: string | null;
   owner_user_id: string | null;
   /** 0070: quem é dono do negócio — humano, agente de IA, ou ninguém. */

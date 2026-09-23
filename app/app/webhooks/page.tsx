@@ -6,7 +6,7 @@ import { traduzir } from "@/lib/i18n/dicionario";
 import { WebhooksClient } from "./_components/WebhooksClient";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Webhooks" };
+export const metadata: Metadata = { title: "Automações e e-mails" };
 
 export default async function WebhooksPage() {
   const user = await requireAuth();
@@ -18,10 +18,10 @@ export default async function WebhooksPage() {
   return (
     <div className="flex h-full flex-col gap-6 p-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Webhooks</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Automações e e-mails</h1>
         <p className="text-sm text-muted-foreground">
           {traduzir(
-            "Receba contatos de fora (landing pages, formulários) e crie automações que agem sozinhas.",
+            "Receba contatos de fora, configure gatilhos e aprove e-mails comerciais antes do envio.",
             idioma,
           )}
         </p>

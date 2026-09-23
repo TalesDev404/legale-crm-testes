@@ -96,6 +96,15 @@ export const actionSchema = z.discriminatedUnion("type", [
     type: z.literal("start_message_flow"),
     config: z.object({ flow_pointer_id: z.string().uuid() }),
   }),
+  z.object({
+    type: z.literal("prepare_email_for_approval"),
+    config: z.object({
+      action_key: z.string().uuid(),
+      subject_template: z.string().min(1).max(200),
+      body_template: z.string().min(1).max(6000),
+      ai_instruction: z.string().max(1000).default(""),
+    }),
+  }),
 ]);
 
 export const createWebhookSourceSchema = z.object({
