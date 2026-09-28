@@ -489,6 +489,16 @@ export const NAV_CATALOG = [
   // lista as cinco (`hubSections`), então as duas continuam a um clique, com a
   // frase que explica para que servem. O ⌘K também as acha por nome.
   {
+    href: "/app/painel-gerencial",
+    label: "Painel gerencial",
+    description: "Propostas, valores, etapas e trabalho comercial em uma visão para a diretoria.",
+    icon: "Gauge",
+    group: "analise",
+    section: "Os números do período",
+    minRole: "manager",
+    sidebar: true,
+  },
+  {
     href: "/app/metrics",
     label: "Desempenho",
     description: "Funil e performance por atendente nos últimos 30 dias.",
