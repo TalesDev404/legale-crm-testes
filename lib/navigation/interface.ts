@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { ROLE_RANK, type Role } from "@/lib/auth/types";
 import { NAV_CATALOG, type NavMetadata, type NavDestinationId } from "./catalogo";
+import { fazParteDoLegale } from "./legale";
 
 const ids = NAV_CATALOG.map((d) => d.href);
 export const interfaceSettingsSchema = z
@@ -47,7 +48,7 @@ export function canSee(
   return platform || (!!role && ROLE_RANK[role] >= ROLE_RANK[d.minRole ?? "viewer"]);
 }
 export function permitidos(platform: boolean, role: Role | null): NavMetadata[] {
-  return NAV_CATALOG.filter((d) => canSee(d, platform, role));
+  return NAV_CATALOG.filter((d) => fazParteDoLegale(d.href) && canSee(d, platform, role));
 }
 /** Leitura tolera versões antigas/removidas sem lançar no layout. */
 export function lerInterface(raw: unknown): {
@@ -93,7 +94,7 @@ export function interfaceTemDestino(
 export function homeDaInterface(raw: unknown, platform: boolean, role: Role | null): string {
   const visible = destinosDaInterface(raw, platform, role);
   return (
-    visible.find((d) => d.href === "/app/inbox")?.href ??
+    visible.find((d) => d.href === "/app/inicio")?.href ??
     visible.find((d) => !essencial(d, role, platform))?.href ??
     "/app/settings/profile"
   );

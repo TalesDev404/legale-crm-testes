@@ -66,10 +66,10 @@ export interface NavMetadata {
  * mesma conversa para a sexta tela.
  */
 export const NAV_GROUPS: NavGroup[] = [
-  { id: "atendimento", label: "Atendimento" },
+  { id: "atendimento", label: "Dia a dia" },
   { id: "crm", label: "CRM", hub: { href: "/app/crm", label: "Ver tudo em CRM" } },
   { id: "ia", label: "Agente de IA", hub: { href: "/app/ai", label: "Ver tudo em IA" } },
-  { id: "canais", label: "Canais" },
+  { id: "canais", label: "Conexões" },
   { id: "analise", label: "Análise", hub: { href: "/app/analise", label: "Ver tudo em Análise" } },
   {
     id: "organizacao",
@@ -103,7 +103,18 @@ export const GRUPO_NO_RODAPE: NavGroupId = "organizacao";
  * fechada e por isso não vira `minRole`.
  */
 export const NAV_CATALOG = [
-  // ---- Atendimento — onde o operador passa o dia ----
+  // ---- Dia a dia — onde o time passa o dia ----
+  {
+    // Legale: a porta de entrada da plataforma. Resume o dia de quem entra
+    // (contatos vencidos, empresas em risco, tarefas, negócios) e é a tela
+    // inicial (`homeDaInterface`).
+    href: "/app/inicio",
+    label: "Início",
+    description: "O resumo do seu dia: contatos vencidos, empresas em risco, tarefas e negócios.",
+    icon: "House",
+    group: "atendimento",
+    sidebar: true,
+  },
   {
     href: "/app/inbox",
     label: "Inbox",
@@ -173,13 +184,27 @@ export const NAV_CATALOG = [
     sidebar: true,
   },
   {
+    // A ficha única do Legale (migration 0318): a empresa que o comercial
+    // prospecta é a mesma que o Sucesso do Cliente acompanha depois do fechamento.
+    href: "/app/empresas",
+    label: "Empresas",
+    description: "Prospects e clientes, com código W, saúde, histórico do comercial e do CS.",
+    icon: "Buildings",
+    group: "crm",
+    section: "O dia a dia da venda",
+    sidebar: true,
+  },
+  {
+    // Saiu do sidebar quando Empresas entrou (Legale vende para empresas; a
+    // pessoa é alcançada pela ficha da empresa). Fica no hub do CRM: a régua de
+    // quatro itens no sidebar é a da dobra em 900px.
     href: "/app/contacts",
     label: "Contatos",
     description: "As pessoas do outro lado da conversa e seu histórico.",
     icon: "Users",
     group: "crm",
     section: "O dia a dia da venda",
-    sidebar: true,
+    sidebar: false,
   },
   {
     href: "/app/propostas",
@@ -461,8 +486,8 @@ export const NAV_CATALOG = [
   },
   {
     href: "/app/webhooks",
-    label: "Webhooks",
-    description: "Avise outros sistemas quando algo acontecer aqui dentro.",
+    label: "Integrações",
+    description: "Outlook (e-mails com aprovação) e avisos para outros sistemas.",
     icon: "WebhooksLogo",
     group: "canais",
     minRole: "manager",

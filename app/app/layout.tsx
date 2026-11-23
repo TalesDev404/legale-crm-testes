@@ -100,7 +100,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     enrolled = isEnrolled;
     needsMfaGate = mfaRequired;
 
-    if (orgRow && !orgRow.onboarded_at && !user.support) redirect("/onboarding");
+    // Legale: ambiente único, já configurado pelo `scripts/legale-configurar-organizacao.ts`.
+    // O assistente de primeira instalação do produto base (WhatsApp, agente de IA,
+    // quadro de nicho) não existe aqui — quem entra vai direto para a plataforma.
     if (orgRow?.status === "suspended") redirect("/account-suspended");
     // G4-02: expõe visibility_mode ao client (inbox decide visões visíveis).
     // Fonte confiável (admin client, org do cookie validado) — nunca do body.

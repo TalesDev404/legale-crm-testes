@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NAV_CATALOG } from "@/lib/navigation/catalogo";
 import {
   destinosDaInterface,
@@ -9,6 +9,12 @@ import {
 } from "@/lib/navigation/interface";
 import { sidebarGroups, searchable, hubSections } from "@/lib/navigation/registry";
 import { signInviteToken, verifyInviteToken } from "@/lib/auth/invite-token";
+
+// Legale: estes testes cobrem a MECÂNICA do menu do produto base (catálogo
+// inteiro). O recorte do Legale (`lib/navigation/legale.ts`) é desligado aqui e
+// provado à parte em `tests/unit/navegacao-legale.test.ts`.
+vi.mock("@/lib/navigation/legale", () => ({ FORA_DO_LEGALE: [], fazParteDoLegale: () => true }));
+
 const complete = { preset: "completa" } as const;
 const simplified = { preset: "simplificada" } as const;
 const granular = { preset: "completa", destinos: ["/app/products"] } as const;

@@ -548,6 +548,14 @@ export const AUDIT_ACTIONS = [
   "commercial_proposal.linked",
   "commercial_catalog.updated",
 
+  // Empresa — a ficha única do Legale (migration 0318). Quem mudou o ciclo de
+  // vida, o responsável ou o ajuste de saúde é o que se pergunta quando um
+  // cliente cancela.
+  "customer_account.created",
+  "customer_account.updated",
+  "customer_account.activity_logged",
+  "organization_member_area.updated",
+
   // As tarefas do CRM (migration 0210). Tarefa é combinado de trabalho entre
   // pessoas do time — quem a criou, quem mudou o prazo e quem a apagou é
   // exatamente o que se disputa depois de um cliente ficar sem retorno.

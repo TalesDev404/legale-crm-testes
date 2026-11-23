@@ -24,14 +24,14 @@ export default async function NotFound() {
           {traduzir("404 — Página não encontrada", idioma)}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {traduzir("Verifique o link ou volte pra inbox.", idioma)}
+          {traduzir("Verifique o link ou volte ao início.", idioma)}
         </p>
         <div className="mt-6 flex justify-center gap-2">
           <Button asChild variant="outline">
             <Link href="/">{traduzir("Voltar", idioma)}</Link>
           </Button>
           <Button asChild>
-            <Link href="/app/inbox">{traduzir("Voltar pra Inbox", idioma)}</Link>
+            <Link href="/app">{traduzir("Voltar ao início", idioma)}</Link>
           </Button>
         </div>
       </Card>

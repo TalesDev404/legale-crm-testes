@@ -5,13 +5,19 @@
  *
  * A permissão é do registro (`navegacao-registry.test.ts`); aqui é o desenho.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 
 import { NavHub } from "@/components/shell/NavHub";
 import { DICIONARIO } from "@/lib/i18n/dicionario";
 import type { ExtensionGuideView } from "@/lib/extensions/view";
 import { hubSections } from "@/lib/navigation/registry";
+
+// Legale: estes testes cobrem a MECÂNICA do menu do produto base (catálogo
+// inteiro). O recorte do Legale (`lib/navigation/legale.ts`) é desligado aqui e
+// provado à parte em `tests/unit/navegacao-legale.test.ts`.
+vi.mock("@/lib/navigation/legale", () => ({ FORA_DO_LEGALE: [], fazParteDoLegale: () => true }));
+
 
 afterEach(cleanup);
 

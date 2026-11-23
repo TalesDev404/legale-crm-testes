@@ -64,7 +64,7 @@ export function ImpersonateButton({
       }
       const redirectUrl =
         (json as { data?: { redirect_url?: string } })?.data?.redirect_url ??
-        "/app/inbox";
+        "/app";
       setOpen(false);
       // Hard navigation so the new cookie is sent on the next request and the
       // server layout can read it to render the banner.

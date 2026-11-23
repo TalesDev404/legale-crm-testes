@@ -15,6 +15,12 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { Sidebar } from "@/components/shell/Sidebar";
 import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
 
+// Legale: estes testes cobrem a MECÂNICA do menu do produto base (catálogo
+// inteiro). O recorte do Legale (`lib/navigation/legale.ts`) é desligado aqui e
+// provado à parte em `tests/unit/navegacao-legale.test.ts`.
+vi.mock("@/lib/navigation/legale", () => ({ FORA_DO_LEGALE: [], fazParteDoLegale: () => true }));
+
+
 const authRef: { user: Pick<AuthUser, "is_platform_admin">; activeOrg: ActiveOrg | null } = {
   user: { is_platform_admin: false },
   activeOrg: null,
@@ -56,7 +62,7 @@ describe("Sidebar agrupado", () => {
       .filter(Boolean);
     // Organização não tem título aqui: seu hub (Configurações) vive no rodapé
     // fixo, fora da área que rola — medido, ele caía fora da dobra até em 1080px.
-    expect(titulos).toEqual(["Atendimento", "CRM", "Agente de IA", "Canais", "Análise"]);
+    expect(titulos).toEqual(["Dia a dia", "CRM", "Agente de IA", "Conexões", "Análise"]);
   });
 
   it("leva às Etapas do funil pelo CRM, e não por Configurações", () => {
@@ -127,7 +133,7 @@ describe("Sidebar agrupado", () => {
     render(<Sidebar collapsed={false} />);
     const titulos = screen.getAllByRole("heading").map((el) => el.textContent?.trim());
     expect(titulos).not.toContain("Canais");
-    expect(titulos).toContain("Atendimento");
+    expect(titulos).toContain("Dia a dia");
   });
 
   it("oferece o hub dos grupos que têm um", () => {

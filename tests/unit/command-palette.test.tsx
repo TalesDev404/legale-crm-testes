@@ -13,6 +13,12 @@ import userEvent from "@testing-library/user-event";
 import { CommandPalette } from "@/components/shell/CommandPalette";
 import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
 
+// Legale: estes testes cobrem a MECÂNICA do menu do produto base (catálogo
+// inteiro). O recorte do Legale (`lib/navigation/legale.ts`) é desligado aqui e
+// provado à parte em `tests/unit/navegacao-legale.test.ts`.
+vi.mock("@/lib/navigation/legale", () => ({ FORA_DO_LEGALE: [], fazParteDoLegale: () => true }));
+
+
 const push = vi.fn();
 const authRef: { user: Pick<AuthUser, "is_platform_admin">; activeOrg: ActiveOrg | null } = {
   user: { is_platform_admin: false },

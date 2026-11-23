@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Respostas rápidas" };
 export default async function TemplatesPage() {
   const user = await requireAuth();
   const activeOrg = await resolveActiveOrg(user);
-  if (!activeOrg) redirect("/app/inbox");
+  if (!activeOrg) redirect("/app");
   const canShare = ROLE_RANK[activeOrg.role] >= ROLE_RANK.manager;
   // `t` local em vez do hook: esta página é componente de SERVIDOR, e lá o
   // idioma vem resolvido em `user.idioma` (a cadeia pessoa → organização →

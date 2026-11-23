@@ -16,7 +16,7 @@ export const metadata = { title: "Acesso pendente · CRM Comercial Legale" };
 export default async function GetStartedPage() {
   const user = await requireAuth();
   const activeOrg = await resolveActiveOrg(user);
-  if (activeOrg) redirect("/app/inbox");
+  if (activeOrg) redirect("/app");
 
   return (
     <main className="legale-public-theme flex min-h-screen items-center justify-center bg-[#f7f5fb] p-6">

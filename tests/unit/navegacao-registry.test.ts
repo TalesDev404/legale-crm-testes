@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   NAV_DESTINATIONS,
@@ -8,6 +8,12 @@ import {
   searchable,
   sidebarGroups,
 } from "@/lib/navigation/registry";
+
+// Legale: estes testes cobrem a MECÂNICA do menu do produto base (catálogo
+// inteiro). O recorte do Legale (`lib/navigation/legale.ts`) é desligado aqui e
+// provado à parte em `tests/unit/navegacao-legale.test.ts`.
+vi.mock("@/lib/navigation/legale", () => ({ FORA_DO_LEGALE: [], fazParteDoLegale: () => true }));
+
 
 /**
  * O registro é a fonte única da navegação. Estes testes cobrem as projeções
@@ -114,7 +120,7 @@ describe("sidebarGroups", () => {
     const crm = sidebarGroups(true, null).find((g) => g.group.id === "crm");
     expect(crm?.items.map((i) => i.href)).toEqual([
       "/app/kanban",
-      "/app/contacts",
+      "/app/empresas",
       "/app/propostas",
       "/app/tasks",
     ]);
@@ -143,7 +149,7 @@ describe("sidebarGroups", () => {
 });
 
 describe("hubSections", () => {
-  it("o hub do CRM é inventário: as seis telas do grupo, nas duas seções", () => {
+  it("o hub do CRM é inventário: as sete telas do grupo, nas duas seções", () => {
     // As seções são a régua do sidebar escrita por extenso — o que se abre todo
     // dia contra o que se define uma vez. Lista EXATA: `toContain` deixaria uma
     // tela nova entrar sem que ninguém decidisse de que lado dela ela cai.
@@ -151,6 +157,7 @@ describe("hubSections", () => {
     expect(secoes.map((s) => s.section)).toEqual(["O dia a dia da venda", "Preparar a venda"]);
     expect(secoes.flatMap((s) => s.items.map((i) => i.href))).toEqual([
       "/app/kanban",
+      "/app/empresas",
       "/app/contacts",
       "/app/propostas",
       "/app/tasks",

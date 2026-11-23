@@ -478,6 +478,13 @@
 }
 
 @theme inline {
+  /* Identidade do Legale — cores fixas da marca (as mesmas do login). */
+  --color-legale-noite: #24113f;
+  --color-legale-roxo: #8e24fe;
+  --color-legale-roxo-escuro: #7718df;
+  --color-legale-lilas: #cbb7ff;
+  --color-legale-agua: #34eaca;
+
   /* Foundation */
   --color-bg: var(--color-bg);
   --color-surface: var(--color-surface);
