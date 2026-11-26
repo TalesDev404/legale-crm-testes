@@ -54,10 +54,24 @@ As regras de código continuam em [`CLAUDE.md`](CLAUDE.md); este arquivo explica
    "Pedidos" de e-commerce se ele estiver vazio. Nunca apaga etapa.
 5. **Equipe:** convide Carla, Junior, Lino, Camila etc. em Equipe e marque as áreas na aba "Áreas".
 
+## Importar a planilha "Controle de CRM e CS"
+
+Feito em 26/11/2026 (91 empresas, 25 negócios, 84 contatos, 273 atividades, 6 tarefas). Para repetir
+depois de mudar a planilha — o script não duplica nada, só atualiza:
+
+1. Ler as abas 1–5 da planilha no SharePoint (conector Microsoft 365) e gerar o `raw.json` com as
+   abas como listas de linhas (mesmo formato de `painel-comercial/tools/parse.js`). **Fora do git.**
+2. `npx tsx scripts/legale-importar-planilha.ts --org legale --arquivo <raw.json> --simular`
+3. Sem avisos estranhos, rodar de novo sem `--simular`.
+
+Regras: empresas unificadas por código W ou nome comparável + apelidos; CRM vira negócio no funil
+Comercial (perdido sem motivo = "Não registrado"); CS define cliente/ex-cliente; históricos viram
+atividades da empresa. Responsável sem usuário no CRM (Carla) fica em branco — rode o import de novo
+depois de convidá-la e a carteira é preenchida.
+
 ## Próximas fases
 
-1. Migração da planilha "Controle de CRM e CS" (abas CRM, Histórico CRM, Sucesso do Cliente, Histórico CS, Tarefas)
-   e das propostas da ferramenta antiga, unificando empresas duplicadas.
+1. Importar as propostas da ferramenta antiga (legalecrm.vercel.app) e ligá-las às empresas.
 2. Outlook: apresentações da agenda movem o funil; e-mails entram na linha do tempo.
 3. Radar de upsell, metas por responsável, automações de follow-up, formulário do site com triagem.
 

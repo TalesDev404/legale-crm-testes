@@ -157,6 +157,7 @@ export const FUNIL_COMERCIAL: FunilDoLegale = {
     "Parou de responder",
     "Falta funcionalidade",
     "Fora do perfil",
+    "Não registrado",
   ],
 };
 
