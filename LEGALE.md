@@ -69,9 +69,18 @@ Comercial (perdido sem motivo = "Não registrado"); CS define cliente/ex-cliente
 atividades da empresa. Responsável sem usuário no CRM (Carla) fica em branco — rode o import de novo
 depois de convidá-la e a carteira é preenchida.
 
+## Importar as propostas da ferramenta antiga
+
+Feito em 26/11/2026 com a exportação de 06/11 (97 propostas; 68 empresas novas como prospect). Para
+atualizar: exportar o `propostas.xlsx` da legalecrm.vercel.app, converter a aba "Propostas" em JSON
+(comando no topo de `scripts/legale-importar-propostas.ts`) e rodar
+`npx tsx scripts/legale-importar-propostas.ts --org legale --arquivo <propostas.json> [--simular]`.
+A exportação só tem totais: cada proposta vira os itens "Mensalidade" e "Monitoramento". Quando a
+validade é anterior à "emissão" (a ferramenta antiga grava ali a última edição), a emissão vira a
+validade e a data original fica nas observações. Rodar de novo atualiza (chave: empresa + validade).
+
 ## Próximas fases
 
-1. Importar as propostas da ferramenta antiga (legalecrm.vercel.app) e ligá-las às empresas.
 2. Outlook: apresentações da agenda movem o funil; e-mails entram na linha do tempo.
 3. Radar de upsell, metas por responsável, automações de follow-up, formulário do site com triagem.
 
