@@ -8,7 +8,6 @@ import { formatCents, formatCentsBRL } from "@/lib/money";
 import {
   COLUNAS_DA_ATIVIDADE,
   COLUNAS_DA_EMPRESA,
-  MODULOS_DO_LEGALE,
   ROTULO_DA_SAUDE,
   ROTULO_DO_CANAL,
   ROTULO_DO_CICLO,
@@ -18,11 +17,50 @@ import {
   saudeDaEmpresa,
   type AtividadeDaEmpresa,
   type Empresa,
+  type FinalidadeDoContato,
 } from "@/lib/schemas/empresas";
+import { ROLE_RANK } from "@/lib/auth/types";
 import { createClient } from "@/lib/supabase/server";
 
 import { CORES_DA_SAUDE } from "../_components/cores";
 import { AjusteDeSaude, EditarEmpresa, RegistrarContato } from "./AcoesDaFicha";
+import { FinalidadesDoContato, MapaDeModulos } from "./PainelDaFicha";
+
+const DIA_MS = 86_400_000;
+
+/** A hora da consulta, fora do corpo do render (regra de pureza do React). */
+async function horarioDaConsulta(): Promise<number> {
+  return Date.now();
+}
+
+/** "2 anos e 3 meses", "5 meses", "12 dias". */
+function tempoDesde(iso: string, agora: number): string {
+  const de = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
+  const hoje = new Date(agora);
+  let meses = (hoje.getFullYear() - de.getFullYear()) * 12 + (hoje.getMonth() - de.getMonth());
+  if (hoje.getDate() < de.getDate()) meses -= 1;
+  if (meses < 1) {
+    const dias = Math.max(0, Math.floor((agora - de.getTime()) / DIA_MS));
+    return `${dias} dia${dias === 1 ? "" : "s"}`;
+  }
+  const anos = Math.floor(meses / 12);
+  const resto = meses % 12;
+  const partes = [
+    anos ? `${anos} ano${anos === 1 ? "" : "s"}` : "",
+    resto ? `${resto} ${resto === 1 ? "mês" : "meses"}` : "",
+  ].filter(Boolean);
+  return partes.join(" e ");
+}
+
+function Cartao({ rotulo, valor, detalhe }: { rotulo: string; valor: React.ReactNode; detalhe?: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border bg-surface p-4">
+      <p className="text-xs text-muted-foreground">{rotulo}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums">{valor}</p>
+      {detalhe ? <p className="mt-0.5 text-xs text-muted-foreground">{detalhe}</p> : null}
+    </div>
+  );
+}
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Empresa" };
@@ -38,6 +76,7 @@ type Negocio = {
   stage_id: string;
   updated_at: string;
   crm_stages: { name: string } | { name: string }[] | null;
+  custom_fields: Record<string, unknown> | null;
 };
 type Proposta = {
   id: string;
@@ -47,7 +86,14 @@ type Proposta = {
   monthly_total_cents: number;
   currency: string;
 };
-type Contato = { id: string; display_name: string | null; name: string | null; email: string | null; phone_number: string | null };
+type Contato = {
+  id: string;
+  display_name: string | null;
+  name: string | null;
+  email: string | null;
+  phone_number: string | null;
+  account_roles: FinalidadeDoContato[] | null;
+};
 type AtividadeDoNegocio = { id: string; lead_id: string; type: string; performed_at: string };
 
 type ItemDaLinha =
@@ -90,7 +136,7 @@ export default async function EmpresaPage({ params }: { params: Promise<{ id: st
     await Promise.all([
       supabase
         .from("crm_leads")
-        .select("id,title,status,value_cents,proposal_monthly_cents,stage_id,updated_at,crm_stages(name)")
+        .select("id,title,status,value_cents,proposal_monthly_cents,stage_id,updated_at,custom_fields,crm_stages(name)")
         .eq("organization_id", org)
         .eq("account_id", id)
         .order("updated_at", { ascending: false })
@@ -104,7 +150,7 @@ export default async function EmpresaPage({ params }: { params: Promise<{ id: st
         .limit(50),
       supabase
         .from("contacts")
-        .select("id,display_name,name,email,phone_number")
+        .select("id,display_name,name,email,phone_number,account_roles")
         .eq("organization_id", org)
         .eq("account_id", id)
         .is("is_merged_into", null)
@@ -147,6 +193,28 @@ export default async function EmpresaPage({ params }: { params: Promise<{ id: st
     ...atividadesDosNegocios.map((a) => ({ tipo: "negocio" as const, quando: a.performed_at, a })),
   ].sort((x, y) => y.quando.localeCompare(x.quando));
   const timePadrao = empresa.lifecycle === "prospect" ? "comercial" : "cs";
+  const podeEditar = ROLE_RANK[activeOrg.role] >= ROLE_RANK.agent;
+  const agora = await horarioDaConsulta();
+
+  // ---- Cartões do topo: a empresa em cinco números ----
+  const ultimaAprovada = propostas.find((p) => p.status === "aprovada");
+  const mensalidade = empresa.monthly_revenue_cents ?? ultimaAprovada?.monthly_total_cents ?? null;
+  const propostasEmAberto = propostas.filter((p) => p.status === "rascunho" || p.status === "enviada");
+  const ultimoContato = atividades[0] ?? null;
+  const diasSemContato = ultimoContato
+    ? Math.floor((agora - Date.parse(ultimoContato.performed_at)) / DIA_MS)
+    : null;
+
+  // ---- Mapa de módulos: o que está em negociação vem dos negócios abertos ----
+  const emNegociacao: Record<string, string> = {};
+  for (const n of negocios) {
+    if (n.status !== "open") continue;
+    const interesse = n.custom_fields?.modulos_interesse;
+    if (!Array.isArray(interesse)) continue;
+    for (const codigo of interesse) {
+      if (typeof codigo === "string" && !emNegociacao[codigo]) emNegociacao[codigo] = n.title;
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-6xl" data-testid="tela-empresa">
@@ -175,6 +243,60 @@ export default async function EmpresaPage({ params }: { params: Promise<{ id: st
         </div>
         <EditarEmpresa empresa={empresa} equipe={equipe.map((p) => ({ id: p.id, nome: p.nome }))} />
       </header>
+
+      <section className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5" data-testid="resumo-da-empresa">
+        <Cartao
+          rotulo="Saúde"
+          valor={saude.nota ?? "—"}
+          detalhe={saude.nivel ? ROTULO_DA_SAUDE[saude.nivel] : "Prospect ainda não tem saúde"}
+        />
+        <Cartao
+          rotulo="Mensalidade"
+          valor={mensalidade != null ? formatCentsBRL(mensalidade) : "—"}
+          detalhe={
+            empresa.monthly_revenue_cents != null
+              ? "Informada na ficha"
+              : ultimaAprovada
+                ? `Pela proposta aprovada de ${data(ultimaAprovada.issue_date)}`
+                : "Sem mensalidade nem proposta aprovada"
+          }
+        />
+        <Cartao
+          rotulo={empresa.lifecycle === "prospect" ? "Prospect há" : "Cliente há"}
+          valor={
+            empresa.lifecycle === "prospect"
+              ? tempoDesde(empresa.created_at, agora)
+              : empresa.customer_since
+                ? tempoDesde(empresa.customer_since, agora)
+                : "—"
+          }
+          detalhe={
+            empresa.lifecycle === "prospect"
+              ? `No CRM desde ${data(empresa.created_at)}`
+              : empresa.customer_since
+                ? `Desde ${data(empresa.customer_since)}`
+                : "Data de início não informada"
+          }
+        />
+        <Cartao
+          rotulo="Propostas em aberto"
+          valor={propostasEmAberto.length}
+          detalhe={
+            propostasEmAberto.length
+              ? `${formatCentsBRL(propostasEmAberto.reduce((t, p) => t + Number(p.monthly_total_cents || 0), 0))}/mês em rascunho ou enviadas`
+              : `${propostas.length} proposta(s) no total`
+          }
+        />
+        <Cartao
+          rotulo="Último contato"
+          valor={diasSemContato == null ? "Nunca" : diasSemContato === 0 ? "Hoje" : `há ${diasSemContato} dias`}
+          detalhe={
+            ultimoContato
+              ? `${ROTULO_DO_CANAL[ultimoContato.channel]} · ${ROTULO_DO_TIME[ultimoContato.team]}`
+              : "Nenhum contato registrado"
+          }
+        />
+      </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">
@@ -243,12 +365,6 @@ export default async function EmpresaPage({ params }: { params: Promise<{ id: st
                         .join(", ") || "Nenhum confirmado"
                     }
                   />
-                  <Dado
-                    rotulo="Módulos"
-                    valor={empresa.contracted_modules
-                      .map((c) => MODULOS_DO_LEGALE.find((m) => m.codigo === c)?.nome ?? c)
-                      .join(", ")}
-                  />
                 </>
               ) : (
                 <Dado rotulo="Próximo contato" valor={data(empresa.next_follow_up_on)} />
@@ -269,6 +385,12 @@ export default async function EmpresaPage({ params }: { params: Promise<{ id: st
                       {c.display_name || c.name || c.email || "Sem nome"}
                     </Link>
                     <p className="text-xs text-muted-foreground">{[c.email, c.phone_number].filter(Boolean).join(" · ")}</p>
+                    <FinalidadesDoContato
+                      empresaId={empresa.id}
+                      contatoId={c.id}
+                      finalidades={c.account_roles ?? []}
+                      podeEditar={podeEditar}
+                    />
                   </li>
                 ))}
               </ul>
@@ -277,6 +399,14 @@ export default async function EmpresaPage({ params }: { params: Promise<{ id: st
         </div>
 
         <div className="space-y-6 lg:col-span-2">
+          {empresa.lifecycle !== "prospect" ? (
+            <MapaDeModulos
+              empresaId={empresa.id}
+              contratados={empresa.contracted_modules}
+              emNegociacao={emNegociacao}
+              podeEditar={podeEditar}
+            />
+          ) : null}
           <RegistrarContato
             empresaId={empresa.id}
             timePadrao={timePadrao}

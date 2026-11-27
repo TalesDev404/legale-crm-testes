@@ -76,6 +76,23 @@ export const MODULOS_DO_LEGALE = [
   { codigo: "api", nome: "API Legale" },
 ] as const;
 
+/**
+ * Para que serve cada pessoa dentro da empresa (`contacts.account_roles`,
+ * migration 0319). Espelha o CHECK `contacts_account_roles_check`.
+ */
+export const FINALIDADES_DO_CONTATO = ["decisor", "signatario", "financeiro", "usuario_chave", "ti"] as const;
+export type FinalidadeDoContato = (typeof FINALIDADES_DO_CONTATO)[number];
+export const ROTULO_DA_FINALIDADE: Record<FinalidadeDoContato, string> = {
+  decisor: "Decisor",
+  signatario: "Assina",
+  financeiro: "Financeiro / NF",
+  usuario_chave: "Usuário-chave",
+  ti: "TI",
+};
+export const finalidadesDoContatoSchema = z.object({
+  account_roles: z.array(z.enum(FINALIDADES_DO_CONTATO)).max(FINALIDADES_DO_CONTATO.length),
+});
+
 export const COLUNAS_DA_EMPRESA =
   "id,organization_id,name,name_key,legal_name,cnpj,legale_code,client_kind,lifecycle,source," +
   "commercial_owner_user_id,cs_owner_user_id,phone,email,website,city,state,customer_since," +

@@ -94,6 +94,8 @@ export interface Lead {
   } | null;
   assigned_at: string | null;
   last_activity_at: string | null;
+  /** Quando o negócio entrou na etapa atual (o board lê `*`). */
+  stage_changed_at?: string | null;
   expected_close_date: string | null;
   closed_at: string | null;
   source: string;

@@ -273,6 +273,9 @@ export function KanbanBoard({
           stageName={
             data.stages.find((s) => s.id === leadDoDossie.stage_id)?.name ?? "—"
           }
+          stagePrazoHoras={
+            data.stages.find((s) => s.id === leadDoDossie.stage_id)?.expected_duration_hours ?? null
+          }
           ownerNames={ownerNames}
         />
       )}

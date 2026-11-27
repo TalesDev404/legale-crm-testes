@@ -9,6 +9,7 @@
  * A implantação é o funil do Sucesso do Cliente nos primeiros meses: do
  * contrato assinado ao escritório usando o sistema.
  *
+ * `chance` vira `crm_stages.win_probability` (pipeline ponderado do painel).
  * `prazoHoras` vira `crm_stages.expected_duration_hours` (o SLA da etapa) e
  * `passo` vira `agent_stage_hint` — um por funil, com `won`/`lost` coerentes
  * com `is_won`/`is_lost` (migration 0084).
@@ -22,6 +23,8 @@ export interface EtapaDoFunil {
   slug: string;
   passo: PassoDoAgente | null;
   prazoHoras: number | null;
+  /** Chance de fechar (0–100) de um negócio nesta etapa: `crm_stages.win_probability`. */
+  chance?: number | null;
   cor: string;
   descricao: string;
 }
@@ -58,6 +61,7 @@ export const FUNIL_COMERCIAL: FunilDoLegale = {
       slug: "novo_lead",
       passo: "new",
       prazoHoras: 24,
+      chance: 10,
       cor: "#64748b",
       descricao: "Chegou pelo site, indicação ou evento. Responder em até 1 dia útil.",
     },
@@ -66,6 +70,7 @@ export const FUNIL_COMERCIAL: FunilDoLegale = {
       slug: "contato_feito",
       passo: "contacted",
       prazoHoras: 72,
+      chance: 20,
       cor: "#0ea5e9",
       descricao: "Já conversamos. Próximo passo: marcar a apresentação.",
     },
@@ -74,6 +79,7 @@ export const FUNIL_COMERCIAL: FunilDoLegale = {
       slug: "apresentacao_agendada",
       passo: "qualifying",
       prazoHoras: 168,
+      chance: 30,
       cor: "#6366f1",
       descricao: "Demonstração marcada no Outlook.",
     },
@@ -82,6 +88,7 @@ export const FUNIL_COMERCIAL: FunilDoLegale = {
       slug: "apresentacao_realizada",
       passo: "qualified",
       prazoHoras: 72,
+      chance: 45,
       cor: "#8b5cf6",
       descricao: "Sistema apresentado. Montar e enviar a proposta.",
     },
@@ -90,6 +97,7 @@ export const FUNIL_COMERCIAL: FunilDoLegale = {
       slug: "proposta_enviada",
       passo: null,
       prazoHoras: 168,
+      chance: 60,
       cor: "#f59e0b",
       descricao: "Proposta com o cliente. Follow-up em 3 dias.",
     },
@@ -98,6 +106,7 @@ export const FUNIL_COMERCIAL: FunilDoLegale = {
       slug: "negociacao",
       passo: "negotiating",
       prazoHoras: 240,
+      chance: 75,
       cor: "#f97316",
       descricao: "Ajuste de escopo, preço ou prazo. Envolver a diretoria se precisar.",
     },
@@ -106,6 +115,7 @@ export const FUNIL_COMERCIAL: FunilDoLegale = {
       slug: "ganho",
       passo: "won",
       prazoHoras: null,
+      chance: 100,
       cor: "#16a34a",
       descricao: "Contrato fechado. A empresa passa para o Sucesso do Cliente.",
     },
@@ -114,6 +124,7 @@ export const FUNIL_COMERCIAL: FunilDoLegale = {
       slug: "perdido",
       passo: "lost",
       prazoHoras: null,
+      chance: 0,
       cor: "#dc2626",
       descricao: "Registrar o motivo da perda.",
     },

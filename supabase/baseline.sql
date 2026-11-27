@@ -28631,6 +28631,26 @@ grant all on table public.organization_member_areas to service_role;
 
 notify pgrst, 'reload schema';
 
+-- ---- chance por etapa e finalidade do contato (migration 0319) ----
+alter table public.crm_stages
+  add column if not exists win_probability smallint
+    check (win_probability is null or win_probability between 0 and 100);
+
+alter table public.contacts
+  add column if not exists account_roles text[] not null default '{}'::text[];
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.contacts'::regclass and conname = 'contacts_account_roles_check'
+  ) then
+    alter table public.contacts
+      add constraint contacts_account_roles_check
+      check (account_roles <@ array['decisor', 'signatario', 'financeiro', 'usuario_chave', 'ti']::text[]);
+  end if;
+end $$;
+
 -- ---- travas do modo somente leitura do suporte, depois de toda tabela (migration 0274) ----
 --
 -- ⚠️ ESTA CHAMADA É O ÚLTIMO BLOCO DO ARQUIVO. Tabela nova, coluna

@@ -107,6 +107,7 @@ async function aplicarFunil(orgId: string, funil: FunilDoLegale, posicao: number
       is_lost: etapa.passo === "lost",
       is_archived: false,
       expected_duration_hours: etapa.prazoHoras,
+      win_probability: etapa.chance ?? null,
       agent_stage_hint: etapa.passo,
     };
     const id = porSlug.get(etapa.slug);

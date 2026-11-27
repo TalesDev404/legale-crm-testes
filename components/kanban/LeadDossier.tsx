@@ -1,7 +1,7 @@
 "use client";
 
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { useT } from "@/hooks/i18n/useT";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -24,7 +24,27 @@ interface Props {
   pipelineId: string;
   fieldDefs?: CustomFieldDef[];
   stageName: string;
+  /** Prazo da etapa em horas (`crm_stages.expected_duration_hours`). */
+  stagePrazoHoras?: number | null;
   ownerNames?: Map<string, string | null>;
+}
+
+/** "3 dias na etapa · prazo 7", em vermelho quando passou do prazo. */
+function TempoNaEtapa({ desde, prazoHoras }: { desde: string; prazoHoras: number | null }) {
+  const [agora] = useState(() => Date.now());
+  const dias = Math.max(0, Math.floor((agora - Date.parse(desde)) / 86_400_000));
+  const prazoDias = prazoHoras ? Math.ceil(prazoHoras / 24) : null;
+  const passou = prazoDias != null && dias > prazoDias;
+  return (
+    <span
+      className={passou ? "font-medium text-red-600 dark:text-red-400" : "text-text-muted"}
+      data-testid="tempo-na-etapa"
+    >
+      {dias === 0 ? "Entrou hoje na etapa" : `${dias} dia${dias === 1 ? "" : "s"} na etapa`}
+      {prazoDias != null ? ` · prazo ${prazoDias}` : ""}
+      {passou ? " · atrasado" : ""}
+    </span>
+  );
 }
 
 function formatBRL(cents: number | null, currency: string | null, showCents = false): string {
@@ -61,6 +81,7 @@ export function LeadDossier({
   pipelineId,
   fieldDefs = [],
   stageName,
+  stagePrazoHoras = null,
   ownerNames,
 }: Props) {
   const tagDoIdioma = useTagDeIdioma();
@@ -100,6 +121,9 @@ export function LeadDossier({
             </span>
           ) : null}
           <span className="text-text-muted">{stageName}</span>
+          {lead.status === "open" ? (
+            <TempoNaEtapa desde={lead.stage_changed_at ?? lead.created_at} prazoHoras={stagePrazoHoras} />
+          ) : null}
           <OwnerBadge
             ownerKind={owner.kind}
             ownerName={owner.name}

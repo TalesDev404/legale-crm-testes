@@ -8,27 +8,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isServiceRoleConfigured } from "@/lib/audit";
 import { formatCents } from "@/lib/money";
 import { carregarPaginas } from "@/lib/gerencial/carregar";
+import {
+  calcularPainelComercial,
+  type EtapaDoPainel,
+  type NegocioDoPainel,
+  type NegocioEmDestaque,
+} from "@/lib/empresas/painel-comercial";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Painel gerencial | Legale" };
 
-type Pipeline = { id: string; name: string };
-type Stage = {
-  id: string;
-  pipeline_id: string;
-  name: string;
-  position: number;
-  is_archived: boolean;
-};
-type Lead = {
-  id: string;
-  pipeline_id: string;
-  stage_id: string;
-  status: string;
-  created_at: string;
-  owner_user_id: string | null;
-};
+type Pipeline = { id: string; name: string; is_default: boolean };
+type Stage = EtapaDoPainel & { pipeline_id: string };
+type Lead = NegocioDoPainel & { pipeline_id: string; owner_user_id: string | null };
 type Proposal = {
   id: string;
   lead_id: string | null;
@@ -108,6 +101,42 @@ function card(titulo: string, valor: string, detalhe: string, destaque = false) 
   );
 }
 
+function ListaDeNegocios({
+  titulo,
+  vazio,
+  itens,
+  detalhe,
+}: {
+  titulo: string;
+  vazio: string;
+  itens: NegocioEmDestaque[];
+  detalhe: (n: NegocioEmDestaque) => string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="font-bold text-slate-900">{titulo}</h3>
+      {itens.length === 0 ? (
+        <p className="mt-3 text-sm text-slate-500">{vazio}</p>
+      ) : (
+        <ul className="mt-3 space-y-2 text-sm">
+          {itens.slice(0, 8).map((n) => (
+            <li key={n.id} className="flex justify-between gap-2">
+              <div className="min-w-0">
+                <Link href={`/app/leads/${n.id}`} className="block truncate font-medium text-slate-900 hover:underline">
+                  {n.title}
+                </Link>
+                <p className="text-xs text-slate-500">{detalhe(n)}</p>
+              </div>
+              <span className="shrink-0 tabular-nums text-slate-600">{n.valorCents ? brl(n.valorCents) : ""}</span>
+            </li>
+          ))}
+          {itens.length > 8 ? <li className="text-xs text-slate-500">e mais {itens.length - 8}</li> : null}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default async function PainelGerencial({ searchParams }: { searchParams: Promise<Params> }) {
   const user = await requireAuth();
   const org = await resolveActiveOrg(user);
@@ -145,7 +174,7 @@ export default async function PainelGerencial({ searchParams }: { searchParams: 
     carregarPaginas<Pipeline>(async (a, b) => {
       const { data, error } = await supabase
         .from("crm_pipelines")
-        .select("id,name")
+        .select("id,name,is_default")
         .eq("organization_id", org.orgId)
         .order("name")
         .range(a, b);
@@ -154,7 +183,7 @@ export default async function PainelGerencial({ searchParams }: { searchParams: 
     carregarPaginas<Stage>(async (a, b) => {
       const { data, error } = await supabase
         .from("crm_stages")
-        .select("id,pipeline_id,name,position,is_archived")
+        .select("id,pipeline_id,name,position,is_archived,is_won,is_lost,win_probability,expected_duration_hours")
         .eq("organization_id", org.orgId)
         .order("position")
         .range(a, b);
@@ -163,7 +192,9 @@ export default async function PainelGerencial({ searchParams }: { searchParams: 
     carregarPaginas<Lead>(async (a, b) => {
       const { data, error } = await supabase
         .from("crm_leads")
-        .select("id,pipeline_id,stage_id,status,created_at,owner_user_id")
+        .select(
+          "id,title,pipeline_id,stage_id,status,created_at,closed_at,stage_changed_at,proposal_monthly_cents,value_cents,account_id,owner_user_id",
+        )
         .eq("organization_id", org.orgId)
         .order("id")
         .range(a, b);
@@ -330,6 +361,22 @@ export default async function PainelGerencial({ searchParams }: { searchParams: 
     .map(([tipo]) => ({ tipo, count: atividades.filter((item) => item.type === tipo).length }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
+  // O bloco do funil olha UM funil: somar etapas do comercial com as da
+  // implantação misturaria "chance de vender" com "andamento de projeto".
+  const funilDoBloco =
+    pipelines.find((item) => item.id === pipelineFilter) ??
+    pipelines.find((item) => item.is_default) ??
+    pipelines[0];
+  const comercial = funilDoBloco
+    ? calcularPainelComercial({
+        negocios: filteredLeads.filter((item) => item.pipeline_id === funilDoBloco.id),
+        etapas: stages.filter((item) => item.pipeline_id === funilDoBloco.id),
+        tarefas: tasksData.rows,
+        inicio: new Date(inicioUtc).toISOString(),
+        fimExclusivo,
+        agora: await horarioDaConsulta(),
+      })
+    : null;
   const truncated = [
     pipelinesData,
     stagesData,
@@ -455,6 +502,100 @@ export default async function PainelGerencial({ searchParams }: { searchParams: 
           Há mais de 10.000 registros em pelo menos uma fonte. Os números desta tela estão
           incompletos; reduza o período ou selecione um funil.
         </p>
+      ) : null}
+
+      {comercial && funilDoBloco ? (
+        <section aria-label="Funil comercial" className="space-y-4" data-testid="painel-funil-comercial">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Funil · {funilDoBloco.name}</h2>
+              <p className="text-sm text-slate-500">
+                Abertos, ponderado e travados são a fotografia de hoje; ganhos, taxa e ciclo usam o período.
+              </p>
+            </div>
+            <Link
+              href={`/app/pipelines/${funilDoBloco.id}`}
+              className="text-sm font-semibold text-violet-700 hover:underline"
+            >
+              Abrir funil
+            </Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {card(
+              "Pipeline ponderado",
+              `${brl(comercial.ponderadoCents)} / mês`,
+              `de ${brl(comercial.abertos.mensalCents)} / mês em ${comercial.abertos.qtd} negócio(s) aberto(s), pela chance de cada etapa`,
+              true,
+            )}
+            {card(
+              "Ganhos no período",
+              `${comercial.ganhos.qtd} · ${brl(comercial.ganhos.mensalCents)} / mês`,
+              `${comercial.perdidos} perdido(s) no mesmo período`,
+            )}
+            {card(
+              "Taxa de ganho",
+              comercial.taxaDeGanho == null ? "—" : `${comercial.taxaDeGanho}%`,
+              "Ganhos ÷ negócios fechados no período",
+            )}
+            {card(
+              "Ciclo médio",
+              comercial.cicloMedioDias == null ? "—" : `${comercial.cicloMedioDias} dias`,
+              "Da criação do negócio ao ganho",
+            )}
+            {card(
+              "Sem próximo passo",
+              String(comercial.semProximoPasso.length),
+              "Abertos sem nenhuma tarefa pendente",
+            )}
+            {card(
+              "Parados além do prazo",
+              String(comercial.parados.length),
+              "Mais tempo na etapa do que o prazo dela",
+            )}
+          </div>
+          <div className="grid gap-5 xl:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="font-bold text-slate-900">Abertos por etapa</h3>
+              {comercial.porEtapa.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-500">Nenhum negócio aberto.</p>
+              ) : (
+                <ul className="mt-3 space-y-3 text-sm">
+                  {comercial.porEtapa.map((e) => (
+                    <li key={e.etapa.id}>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-slate-800">
+                          {e.etapa.name}{" "}
+                          <span className="text-xs text-slate-500">
+                            · {e.qtd} · {e.etapa.win_probability ?? 0}%
+                          </span>
+                        </span>
+                        <span className="font-semibold tabular-nums text-slate-900">{brl(e.mensalCents)}</span>
+                      </div>
+                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-violet-100">
+                        <div
+                          className="h-full rounded-full bg-violet-600"
+                          style={{ width: `${percentual(e.mensalCents, comercial.abertos.mensalCents)}%` }}
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <ListaDeNegocios
+              titulo="Sem próximo passo"
+              vazio="Todo negócio aberto tem uma tarefa combinada."
+              itens={comercial.semProximoPasso}
+              detalhe={(n) => `${n.etapa} · ${n.dias} dia(s) na etapa`}
+            />
+            <ListaDeNegocios
+              titulo="Parados além do prazo"
+              vazio="Nenhum negócio passou do prazo da etapa."
+              itens={comercial.parados}
+              detalhe={(n) => `${n.etapa} · ${n.dias} dia(s), prazo ${n.prazoDias}`}
+            />
+          </div>
+        </section>
       ) : null}
 
       <section

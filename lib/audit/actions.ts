@@ -554,6 +554,8 @@ export const AUDIT_ACTIONS = [
   "customer_account.created",
   "customer_account.updated",
   "customer_account.activity_logged",
+  "customer_account.upsell_created",
+  "customer_account.contact_roles_updated",
   "organization_member_area.updated",
 
   // As tarefas do CRM (migration 0210). Tarefa é combinado de trabalho entre
